@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="owl.AnalyticDashboard" owl="1">
+        <div class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
+            <div class="container-fluid py-2">
+                <!-- Title -->
+                <div class="ms-3">
+                    <h3 class="mb-0 h4 font-weight-bolder">Module de gestion analytique</h3>
+                    <br />
+                </div>
+                <!-- Stat Cards -->
+                <div class="row">
+                    <div class="col-lg-3 col-md-6 col-sm-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6>Projets actifs</h6>
+                            </div>
+                            <div class="card-body">
+                                <p>5</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 col-sm-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6>Resultat chantier total</h6>
+                            </div>
+                            <div class="card-body">
+                                <p>45 000 CFA</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 col-sm-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6>Tâches en cours</h6>
+                            </div>
+                            <div class="card-body">
+                                <p>12</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 col-sm-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6>Progression moyenne</h6>
+                            </div>
+                            <div class="card-body">
+                                <p>75%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Analytics Table -->
+                <div class="row">
+                    <div class="col-lg-8 col-sm-12">
+                        <div class="card">
+                            <div class="card-header pb-0">
+                                <h6>Analyse des Projets</h6>
+                            </div>
+                            <div class="card-body px-0 pb-2">
+                                <div class="table-responsive">
+                                    <table class="table align-items-center mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th class="text-uppercase text-secondary text-xs font-weight-bolder">
+                                                    Code Projet
+                                                </th>
+                                                <th class="text-uppercase text-secondary text-xs font-weight-bolder text-center">
+                                                    Budget (CFA)
+                                                </th>
+                                                <th class="text-uppercase text-secondary text-xs font-weight-bolder text-center">
+                                                    Avancement
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <h6 class="text-sm">LBVM001</h6>
+                                                </td>
+                                                <td class="text-center">15 000</td>
+                                                <td>
+                                                    <div class="progress-wrapper w-75 mx-auto">
+                                                        <div class="progress">
+                                                            <div class="progress-bar bg-gradient-info" style="width:50%;"></div>
+                                                        </div>
+                                                        <small>50%</small>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <h6 class="text-sm">LBVM002</h6>
+                                                </td>
+                                                <td class="text-center">20 000</td>
+                                                <td>
+                                                    <div class="progress-wrapper w-75 mx-auto">
+                                                        <div class="progress">
+                                                            <div class="progress-bar bg-gradient-info" style="width:75%;"></div>
+                                                        </div>
+                                                        <small>75%</small>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <h6 class="text-sm">LBVM003</h6>
+                                                </td>
+                                                <td class="text-center">10 000</td>
+                                                <td>
+                                                    <div class="progress-wrapper w-75 mx-auto">
+                                                        <div class="progress">
+                                                            <div class="progress-bar bg-gradient-info" style="width:25%;"></div>
+                                                        </div>
+                                                        <small>25%</small>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-sm-12">
+                        <div class="card">
+                            <div class="card-header pb-0">
+                                <h6>Répartition des résultats</h6>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="budgetChart" height="250"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

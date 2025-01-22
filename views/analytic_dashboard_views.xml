@@ -1,0 +1,73 @@
+<odoo>
+    <data>
+
+        <!-- Vue de formulaire pour le modèle analytic.dashboard -->
+       <record id="view_analytic_dashboard_form" model="ir.ui.view">
+            <field name="name">analytic.dashboard.form</field>
+            <field name="model">analytic.dashboard</field>
+            <field name="arch" type="xml">
+                <form string="Vue Analytique">
+                    <sheet>
+                        <group colspan="2">
+                            <group>
+                                <field name="exploitation" widget="statusbar" options="{'clickable': True}"/>
+                                <field name="project_code" placeholder="e.g. 101000"/>
+                                <field name="libelle" placeholder="Libellé du Projet"/>
+                                <field name="marche_initial"/>
+                                <field name="ts"/>
+                            </group>
+                            <group>
+                                <field name="factures_cumulees"/>
+                                <field name="od_facture"/>
+                                <field name="non_facture"/>
+                                <field name="trop_facture"/>
+                                <field name="depenses_cumulees"/>
+                                <field name="debours_previsionnels"/>
+                            </group>
+                        </group>
+                        <group>
+                            <field name="ca_final" readonly="1"/>
+                            <field name="activite_cumulee" readonly="1"/>
+                            <field name="pourcentage_avancement" widget="percentage" readonly="1"/>
+                            <field name="resultat_chantier_cumule" readonly="1"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Vue de liste pour le modèle analytic.dashboard -->
+        <record id="view_analytic_dashboard_list" model="ir.ui.view">
+            <field name="name">analytic.dashboard.list</field>
+            <field name="model">analytic.dashboard</field>
+            <field name="arch" type="xml">
+                <list string="Vues Analytiques">
+                    <field name="exploitation"/>
+                    <field name="project_code"/>
+                    <field name="libelle"/>
+                    <field name="ts" widget="monetary" options="{'currency_field': 'company_currency_id'}"/>
+                    <field name="marche_initial"/>
+                    <field name="depenses_cumulees"/>
+                    <field name="pourcentage_avancement" widget="percentage"/>
+                    <field name="activite_cumulee"/>
+                    <field name="resultat_chantier_cumule"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Action pour ouvrir la vue -->
+        <record id="action_analytic_dashboard" model="ir.actions.act_window">
+            <field name="name">Vues Analytiques</field>
+            <field name="res_model">analytic.dashboard</field>
+            <field name="view_mode">list,form</field>
+            <field name="view_id" ref="view_analytic_dashboard_list"/>
+        </record>
+
+        <!-- Ajout de l'action au menu -->
+        <menuitem name="Vues Analytiques"
+                  id="menu_dashboard"
+                  parent="menu_analytic_manager"
+                  action="action_analytic_dashboard"
+                  sequence="30"/>
+    </data>
+</odoo>

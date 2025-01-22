@@ -1,1 +1,2 @@
-from . import analytic_result
+# models\__init__.py
+from . import analytic_dashboard

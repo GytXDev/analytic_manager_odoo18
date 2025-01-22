@@ -1,0 +1,10 @@
+<odoo>
+    <data>
+        <record id="action_dashboard" model="ir.actions.client">
+            <field name="name">Tableau de Bord Analytique</field>
+            <field name="tag">dashboard_analytic</field>
+        </record>
+
+        <menuitem name="Tableau de Bord" id="menu_dashboard_js" parent="menu_analytic_manager" action="action_dashboard" sequence="20"/>
+    </data>
+</odoo>  
