@@ -1,36 +1,83 @@
+<!-- views\analytic_dashboard_views.xml -->
 <odoo>
     <data>
 
         <!-- Vue de formulaire pour le modèle analytic.dashboard -->
-       <record id="view_analytic_dashboard_form" model="ir.ui.view">
+        <record id="view_analytic_dashboard_form" model="ir.ui.view">
             <field name="name">analytic.dashboard.form</field>
             <field name="model">analytic.dashboard</field>
             <field name="arch" type="xml">
                 <form string="Vue Analytique">
                     <sheet>
                         <group colspan="2">
-                            <group>
-                                <field name="exploitation" widget="statusbar" options="{'clickable': True}"/>
-                                <field name="project_code" placeholder="e.g. 101000"/>
-                                <field name="libelle" placeholder="Libellé du Projet"/>
-                                <field name="marche_initial"/>
-                                <field name="ts"/>
+                            <group style="display: flex; flex-direction: column; gap: 20px;">
+                                <!-- Titre Exploitation -->
+                                <div style="display: flex; flex-direction: column; gap: 5px;">
+                                    <field name="exploitation" widget="statusbar" options="{'clickable': True}"/>
+                                </div>
+
+                                <!-- Titre Name -->
+                                <div style="display: flex; flex-direction: column; gap: 5px;">
+                                    <label for="name" style="font-size: 1rem; font-weight: normal; color: #555;">Nom :</label>
+                                    <h1 style="font-size: 1.2rem; font-weight: bold; color: #333; margin-bottom: 20px;">
+                                        <field name="name"/>
+                                    </h1>
+                                </div>
                             </group>
                             <group>
-                                <field name="factures_cumulees"/>
-                                <field name="od_facture"/>
-                                <field name="non_facture"/>
-                                <field name="trop_facture"/>
-                                <field name="depenses_cumulees"/>
-                                <field name="debours_previsionnels"/>
+                                <field name="libelle" readonly="id != False"/>
+                                <field name="plan_id" readonly="id != False"/>
                             </group>
                         </group>
-                        <group>
-                            <field name="ca_final" readonly="1"/>
-                            <field name="activite_cumulee" readonly="1"/>
-                            <field name="pourcentage_avancement" widget="percentage" readonly="1"/>
-                            <field name="resultat_chantier_cumule" readonly="1"/>
-                        </group>
+                        <notebook>
+                            <!-- Page 1 : Champs à renseigner -->
+                            <page string="Champs à renseigner">
+                                <group>
+                                    <table class="oe_form_table">
+                                        <tr>
+                                            <td><label for="marche_initial" string="Marche Initial"/></td>
+                                            <td><label for="ts" string="TS"/></td>
+                                            <td><label for="od_facture" string="OD Facture"/></td>
+                                            <td><label for="non_facture" string="Non Facturé"/></td>
+                                            <td><label for="trop_facture" string="Trop Facturé"/></td>
+                                            <td><label for="debours_previsionnels" string="Débours Prévisionnels"/></td>
+                                        </tr>
+                                        <tr>
+                                            <td><field name="marche_initial"/></td>
+                                            <td><field name="ts"/></td>
+                                            <td><field name="od_facture"/></td>
+                                            <td><field name="non_facture"/></td>
+                                            <td><field name="trop_facture"/></td>
+                                            <td><field name="debours_previsionnels"/></td>
+                                        </tr>
+                                    </table>
+                                </group>
+                            </page>
+
+                            <!-- Page 2 : Champs calculés -->
+                            <page string="Champs calculés">
+                                <group>
+                                    <table class="oe_form_table">
+                                        <tr>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="factures_cumulees" string="Factures Cumulées"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="depenses_cumulees" string="Dépenses Cumulées"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="ca_final" string="CA Final"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="activite_cumulee" string="Activité Cumulée"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="pourcentage_avancement" string="Pourcentage Avancement"/></td>
+                                            <td style="padding-left: 20px;"><label for="resultat_chantier_cumule" string="Résultat Chantier Cumulé"/></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="factures_cumulees" readonly="1"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="depenses_cumulees" readonly="1"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="ca_final" readonly="1"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="activite_cumulee" readonly="1"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="pourcentage_avancement" widget="percentage" readonly="1"/></td>
+                                            <td style="padding-left: 20px;"><field name="resultat_chantier_cumule" readonly="1"/></td>
+                                        </tr>
+                                    </table>
+                                </group>
+                            </page>
+                        </notebook>
                     </sheet>
                 </form>
             </field>
@@ -43,7 +90,7 @@
             <field name="arch" type="xml">
                 <list string="Vues Analytiques">
                     <field name="exploitation"/>
-                    <field name="project_code"/>
+                    <field name="name"/>
                     <field name="libelle"/>
                     <field name="ts" widget="monetary" options="{'currency_field': 'company_currency_id'}"/>
                     <field name="marche_initial"/>
