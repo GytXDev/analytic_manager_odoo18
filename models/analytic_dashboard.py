@@ -203,14 +203,20 @@ class AnalyticDashboard(models.Model):
         """
         Retourne tous les projets, qu'ils soient en cours ou terminés.
         """
-        projets = self.search([]) 
-        projets_data = [{
-            'code_projet': projet.name.code,
-            'libelle': projet.libelle,
-            'pourcentage_avancement': projet.pourcentage_avancement,
-            'resultat_chantier': projet.resultat_chantier_cumule,
-        } for projet in projets]
+        projets = self.search([])
+        projets_data = []
+        
+        for projet in projets:
+            projets_data.append({
+                'code_projet': projet.name.code,
+                'libelle': projet.libelle,
+                'pourcentage_avancement': projet.pourcentage_avancement,
+                'resultat_chantier_cumule': projet.resultat_chantier_cumule,
+                'ca_final': projet.ca_final,
+            })
+        
         return projets_data
+
 
     def get_resultat_chantier_total(self):
         """
@@ -255,8 +261,8 @@ class AnalyticDashboard(models.Model):
                 'code_projet': projet['code_projet'],
                 'libelle': projet['libelle'],
                 'pourcentage_avancement': projet['pourcentage_avancement'],
-                'resultat_chantier': projet['resultat_chantier'],
-                     
+                'resultat_chantier_cumule': projet['resultat_chantier_cumule'],
+                'ca_final': projet['ca_final']
             }
             projets_donnees.append(projet_donnees)  
         

@@ -7,6 +7,20 @@
                     <h3 class="mb-0 h4 font-weight-bolder">Module de gestion analytique</h3>
                     <br />
                 </div>
+                <div class="style-switcher">
+                    <div class="style-switcher-toggler s-icon">
+                        <i class="fa fa-cog"></i>
+                    </div>
+                    <p>Choisir une période</p>
+                    <div class="search">
+                        <select id="chart-selection">
+                            <option value="all">Tous</option>
+                            <option value="month">Ce mois</option>
+                            <option value="week">M-1</option>
+                            <option value="year">Cette année</option>
+                        </select>
+                    </div>
+                </div>
                 <!-- Stat Cards -->
                 <div class="row">
                     <div class="col-lg-3 col-md-6 col-sm-12">
@@ -15,7 +29,7 @@
                                 <h6>Projets terminés</h6>
                             </div>
                             <div class="card-body">
-                                <p>5</p>
+                                <p><t t-esc="state.projetsTerminesCount" /></p>
                             </div>
                         </div>
                     </div>
@@ -25,7 +39,7 @@
                                 <h6>Resultat chantier total</h6>
                             </div>
                             <div class="card-body">
-                                <p>45 000 CFA</p>
+                                 <p><t t-esc="state.resultatChantierTotal" /> CFA</p>
                             </div>
                         </div>
                     </div>
@@ -35,7 +49,7 @@
                                 <h6>Projet en cours</h6>
                             </div>
                             <div class="card-body">
-                                <p>12</p>
+                                <p><t t-esc="state.projetsEnCoursCount" /></p>
                             </div>
                         </div>
                     </div>
@@ -45,7 +59,7 @@
                                 <h6>Progression moyenne</h6>
                             </div>
                             <div class="card-body">
-                                <p>75%</p>
+                                <p><t t-esc="state.progressionMoyenne" />%</p>
                             </div>
                         </div>
                     </div>
@@ -87,7 +101,7 @@
                                 <h6>Répartition des résultats</h6>
                             </div>
                             <div class="card-body">
-                                <canvas id="budgetChart" height="250"></canvas>
+                                <canvas id="ResultatChart" height="250"></canvas>
                             </div>
                         </div>
                     </div>
