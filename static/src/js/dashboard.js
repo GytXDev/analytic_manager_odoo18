@@ -34,7 +34,7 @@ export class AnalyticDashboard extends Component {
 
 
     _eventListenersChart() {
-        // Style switcher
+        // Toggle du style switcher
         document.querySelectorAll('.style-switcher-toggler').forEach(el => {
             el.addEventListener('click', () => {
                 const styleSwitcher = document.querySelector('.style-switcher');
@@ -44,19 +44,42 @@ export class AnalyticDashboard extends Component {
             });
         });
 
-        // Sélecteur de période
-        const chartSelection = document.querySelector('#chart-selection');
-        if (chartSelection) {
-        }
-    }
+        // Gestion du sélecteur de période
+        const periodSelector = document.getElementById('period-selector');
+        const dateRangeDiv = document.getElementById('date-range');
 
+        periodSelector.addEventListener('change', () => {
+            if (periodSelector.value === 'custom') {
+                dateRangeDiv.classList.remove('hidden');
+            } else {
+                dateRangeDiv.classList.add('hidden');
+            }
+
+            if (periodSelector.value === 'last-month') {
+                console.log('Données pour M-1');
+            } else if (periodSelector.value === 'this-month') {
+                console.log('Données pour Ce Mois');
+            }
+        });
+
+        // Gestion du bouton Appliquer
+        const applyButton = document.querySelector('.btn-submit');
+        applyButton.addEventListener('click', () => {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            if (startDate && endDate) {
+                console.log(`Période personnalisée : ${startDate} au ${endDate}`);
+            } else {
+                console.log('Veuillez sélectionner une période valide.')
+            }
+        });
+    }
 
     async loadResultatChantierTotal() {
         try {
             const result = await rpc('/dashboard/resultat_chantier_total', {});
             const total = result?.resultat_chantier_total || 0;
             this.state.resultatChantierTotal = total.toLocaleString();
-            console.log("Résultat chantier total:", total);
         } catch (error) {
             console.error("Erreur lors de la récupération du résultat chantier total :", error);
         }
@@ -68,7 +91,8 @@ export class AnalyticDashboard extends Component {
             const result = await rpc('/dashboard/progression_moyenne', {});
 
             // Extraction de la valeur numérique depuis l'objet
-            let progression = result?.progression_moyenne || 0; // Assurez-vous que 'progression_moyenne' est bien défini
+            let progression = result?.progression_moyenne || 0;
+            console.log("Progression moyenne:", result);
 
             // Vérification de la validité de la progression
             if (typeof progression === 'number' && !isNaN(progression)) {
@@ -78,7 +102,6 @@ export class AnalyticDashboard extends Component {
                 console.error("Progression moyenne invalide:", progression);
             }
 
-            console.log("Progression moyenne:", progression);
         } catch (error) {
             console.error("Erreur lors de la récupération de la progression moyenne :", error);
             this.state.progressionMoyenne = '0.00'; // Valeur par défaut en cas d'erreur
@@ -91,7 +114,6 @@ export class AnalyticDashboard extends Component {
         try {
             const result = await rpc('/dashboard/statistiques_projets', {});
             this.state.statistiquesProjets = result || {};
-            console.log("Statistiques des projets:", result);
         } catch (error) {
             console.error("Erreur lors de la récupération des statistiques des projets :", error);
         }
@@ -111,8 +133,7 @@ export class AnalyticDashboard extends Component {
                     code: projet.code_projet,
                     resultChantier: projet.resultat_chantier_cumule || 0,
                 }));
-
-                console.log("Projets en cours:", this.state.projetsEnCours);
+                console.log("Projets en cours:", this.state.projetEnCours);
                 console.log("Projets terminés:", this.state.projetsTermines);
 
                 // Dynamiser le tableau des projets

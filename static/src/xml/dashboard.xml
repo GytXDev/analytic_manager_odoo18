@@ -1,24 +1,32 @@
 <templates xml:space="preserve">
     <t t-name="owl.AnalyticDashboard" owl="1">
-        <div class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
+        <div>
             <div class="container-fluid py-2">
                 <!-- Title -->
                 <div class="ms-3">
                     <h3 class="mb-0 h4 font-weight-bolder">Module de gestion analytique</h3>
                     <br />
                 </div>
-                <div class="style-switcher">
-                    <div class="style-switcher-toggler s-icon">
+                <div class="analytic-manager style-switcher">
+                    <div class="analytic-manager style-switcher-toggler s-icon">
                         <i class="fa fa-cog"></i>
                     </div>
-                    <p>Choisir une période</p>
-                    <div class="search">
-                        <select id="chart-selection">
-                            <option value="all">Tous</option>
-                            <option value="month">Ce mois</option>
-                            <option value="week">M-1</option>
-                            <option value="year">Cette année</option>
-                        </select>
+                    <h3>Choisir une période</h3>
+                    <select id="period-selector" class="analytic-manager period-dropdown">
+                        <option value="last-month">M-1 : Mois Précédent</option>
+                        <option value="this-month">Ce Mois</option>
+                        <option value="custom">Période Personnalisée</option>
+                    </select>
+                    <div id="date-range" class="analytic-manager hidden date-range">
+                        <div class="analytic-manager date-input">
+                            <label for="start-date">Du :</label>
+                            <input type="date" id="start-date" />
+                        </div>
+                        <div class="analytic-manager date-input">
+                            <label for="end-date">Au :</label>
+                            <input type="date" id="end-date" />
+                        </div>
+                        <button class="analytic-manager btn-submit">Appliquer</button>
                     </div>
                 </div>
                 <!-- Stat Cards -->
