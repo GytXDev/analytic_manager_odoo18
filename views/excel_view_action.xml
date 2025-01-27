@@ -1,0 +1,10 @@
+<odoo>
+    <data>
+        <record id="action_excel" model="ir.actions.client">
+            <field name="name">Vue Analytique Excel</field>
+            <field name="tag">excel_analytic</field>
+        </record>
+
+        <menuitem name="Vue Analytique Excel" id="menu_excel_js" parent="menu_analytic_manager" action="action_excel" sequence="40"/>
+    </data>
+</odoo>  

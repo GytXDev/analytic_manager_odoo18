@@ -1,0 +1,13 @@
+<templates xml:space="preserve">
+    <t t-name="owl.ExcelAnalytic" owl="1">
+        <div>
+            <div class="container-fluid py-2">
+                <!-- Title -->
+                <div class="ms-3">
+                    <h3 class="mb-0 h4 font-weight-bolder">Excel Analytique</h3>
+                    <br />
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

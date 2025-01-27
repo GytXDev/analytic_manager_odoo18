@@ -17,6 +17,7 @@
         'views/analytic_menu.xml',
         'views/dashboard_action.xml',
         'views/analytic_dashboard_views.xml',
+        'views/excel_view_action.xml',
     ],
     'assets': {
         'web.assets_backend': [
@@ -25,7 +26,9 @@
             'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js',
 
             'analytic_manager/static/src/js/dashboard.js',
+            'analytic_manager/static/src/js/excel_analytic.js',
             'analytic_manager/static/src/xml/dashboard.xml',
+            'analytic_manager/static/src/xml/excel_analytic.xml',
             'analytic_manager/static/src/css/material-dashboard.css',
             'analytic_manager/static/src/css/styleswicther.css',
         ],
