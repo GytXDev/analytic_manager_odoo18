@@ -6,7 +6,8 @@
 
 /* Titre principal */
 h3 {
-  color: #2c3e50;
+  color: #007bff;
+  /* Bleu */
   font-weight: bold;
 }
 
@@ -23,7 +24,8 @@ h3 {
 .card-header {
   font-size: 16px;
   font-weight: bold;
-  color: #34495e;
+  color: #007bff;
+  /* Bleu */
   margin-bottom: 10px;
   border-bottom: 1px solid #e0e0e0;
 }
@@ -32,6 +34,7 @@ h3 {
   font-size: 20px;
   font-weight: bold;
   color: #36426f;
+  /* Gardé pour le contraste */
 }
 
 /* Tableau des analyses */
@@ -45,6 +48,7 @@ h3 {
 
 .table thead th {
   background-color: #34495e;
+  /* Bleu */
   color: #ffffff;
   text-align: center;
   font-size: 14px;
@@ -56,7 +60,8 @@ h3 {
 }
 
 .table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: #e7f1ff;
+  /* Légère teinte de bleu clair */
 }
 
 .table td {
@@ -78,7 +83,8 @@ h3 {
 }
 
 .progress-bar {
-  background-color: #16a085;
+  background-color: #5dade2;
+  /* Bleu */
   height: 100%;
 }
 

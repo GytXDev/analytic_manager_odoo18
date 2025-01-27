@@ -29,9 +29,20 @@ export class AnalyticDashboard extends Component {
             await this.loadProjets();
             this.generateChart();
             this._eventListenersChart();
+
+            // Clic pour les projets terminés
+            const completedProjectsCard = document.getElementById('completed-projects-card');
+            completedProjectsCard.addEventListener('click', () => {
+                this.showCompletedProjects();
+            });
+
+            // Ajout de l'événement de clic pour les projets en cours
+            const ongoingProjectsCard = document.getElementById('ongoing-projects-card');
+            ongoingProjectsCard.addEventListener('click', () => {
+                this.showOngoingProjects();
+            });
         });
     }
-
 
     _eventListenersChart() {
         // Toggle du style switcher
@@ -53,31 +64,51 @@ export class AnalyticDashboard extends Component {
                 dateRangeDiv.classList.remove('hidden');
             } else {
                 dateRangeDiv.classList.add('hidden');
-            }
-
-            if (periodSelector.value === 'last-month') {
-                console.log('Données pour M-1');
-            } else if (periodSelector.value === 'this-month') {
-                console.log('Données pour Ce Mois');
+                // Chargez les projets pour le mois sélectionné
+                this.loadProjets(); // Vous pouvez aussi passer le filtre ici
             }
         });
 
         // Gestion du bouton Appliquer
         const applyButton = document.querySelector('.btn-submit');
-        applyButton.addEventListener('click', () => {
+        applyButton.addEventListener('click', async () => {
             const startDate = document.getElementById('start-date').value;
             const endDate = document.getElementById('end-date').value;
-            if (startDate && endDate) {
-                console.log(`Période personnalisée : ${startDate} au ${endDate}`);
-            } else {
-                console.log('Veuillez sélectionner une période valide.')
+
+            let dateFilter = {};
+            if (periodSelector.value === 'last-month') {
+                const today = new Date();
+                const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+                dateFilter = {
+                    start: lastMonthStart.toISOString().split('T')[0],
+                    end: lastMonthEnd.toISOString().split('T')[0]
+                };
+            } else if (periodSelector.value === 'this-month') {
+                const today = new Date();
+                const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                dateFilter = {
+                    start: thisMonthStart.toISOString().split('T')[0],
+                    end: thisMonthEnd.toISOString().split('T')[0]
+                };
+            } else if (periodSelector.value === 'custom' && startDate && endDate) {
+                dateFilter = {
+                    start: startDate,
+                    end: endDate
+                };
             }
+
+            // Appeler les méthodes de chargement
+            await this.loadProjets(dateFilter);
+            await this.loadResultatChantierTotal(dateFilter);
+            await this.loadProgressionMoyenne(dateFilter);
         });
     }
 
-    async loadResultatChantierTotal() {
+    async loadResultatChantierTotal(dateFilter = {}) {
         try {
-            const result = await rpc('/dashboard/resultat_chantier_total', {});
+            const result = await rpc('/dashboard/resultat_chantier_total', dateFilter);
             const total = result?.resultat_chantier_total || 0;
             this.state.resultatChantierTotal = total.toLocaleString();
         } catch (error) {
@@ -85,30 +116,23 @@ export class AnalyticDashboard extends Component {
         }
     }
 
-
-    async loadProgressionMoyenne() {
+    async loadProgressionMoyenne(dateFilter = {}) {
         try {
-            const result = await rpc('/dashboard/progression_moyenne', {});
-
-            // Extraction de la valeur numérique depuis l'objet
+            const result = await rpc('/dashboard/progression_moyenne', dateFilter);
             let progression = result?.progression_moyenne || 0;
             console.log("Progression moyenne:", result);
 
-            // Vérification de la validité de la progression
             if (typeof progression === 'number' && !isNaN(progression)) {
                 this.state.progressionMoyenne = (progression * 100).toFixed(2); // En pourcentage
             } else {
                 this.state.progressionMoyenne = '0.00'; // Valeur par défaut si progression invalide
                 console.error("Progression moyenne invalide:", progression);
             }
-
         } catch (error) {
             console.error("Erreur lors de la récupération de la progression moyenne :", error);
             this.state.progressionMoyenne = '0.00'; // Valeur par défaut en cas d'erreur
         }
     }
-
-
 
     async loadStatistiquesProjets() {
         try {
@@ -119,28 +143,37 @@ export class AnalyticDashboard extends Component {
         }
     }
 
-    async loadProjets() {
+    async loadProjets(dateFilter = {}) {
         try {
             const allProjets = await rpc('/dashboard/liste_projets', {});
             if (Array.isArray(allProjets)) {
-                this.state.projetsEnCours = allProjets.filter(projet => projet.pourcentage_avancement < 1);
-                this.state.projetsTermines = allProjets.filter(projet => projet.pourcentage_avancement >= 1);
+                // Filtrer par période si un filtre est fourni
+                const filteredProjets = allProjets.filter(projet => {
+                    const projetDate = new Date(projet.date);
+                    if (dateFilter.start && dateFilter.end) {
+                        return projetDate >= new Date(dateFilter.start) && projetDate <= new Date(dateFilter.end);
+                    }
+                    return true; // Pas de filtre
+                });
 
+                this.state.projetsEnCours = filteredProjets.filter(projet => projet.pourcentage_avancement < 1);
+                this.state.projetsTermines = filteredProjets.filter(projet => projet.pourcentage_avancement >= 1);
+
+                // Mettre à jour projetsData pour le graphique
+                this.state.projetsData = filteredProjets.map(projet => ({
+                    code: projet.code_projet,
+                    resultChantier: projet.resultat_chantier_cumule, // Assurez-vous que ce champ existe
+                }));
+
+                // Compter les projets
                 this.state.projetsTerminesCount = this.state.projetsTermines.length;
                 this.state.projetsEnCoursCount = this.state.projetsEnCours.length;
-
-                this.state.projetsData = allProjets.map(projet => ({
-                    code: projet.code_projet,
-                    resultChantier: projet.resultat_chantier_cumule || 0,
-                }));
-                console.log("Projets en cours:", this.state.projetEnCours);
-                console.log("Projets terminés:", this.state.projetsTermines);
 
                 // Dynamiser le tableau des projets
                 const tableBody = document.getElementById('projects-table-body');
                 tableBody.innerHTML = ''; // Vider le tableau existant
 
-                allProjets.forEach(projet => {
+                filteredProjets.forEach(projet => {
                     const row = document.createElement('tr');
 
                     // Code Projet
@@ -185,6 +218,9 @@ export class AnalyticDashboard extends Component {
                     tableBody.appendChild(row);
                 });
 
+                // Appeler la fonction pour générer le graphique
+                this.generateChart();
+
             } else {
                 console.error("La réponse n'est pas un tableau :", allProjets);
             }
@@ -195,6 +231,12 @@ export class AnalyticDashboard extends Component {
 
     generateChart() {
         const ctx = document.getElementById('ResultatChart').getContext('2d');
+
+        // Vérifiez si un graphique existe déjà
+        if (this.chart) {
+            this.chart.destroy(); // Détruire le graphique existant
+        }
+
         if (!this.state.projetsData || !this.state.projetsData.length) {
             console.error("Pas de données valides pour générer le graphique !");
             return;
@@ -210,7 +252,7 @@ export class AnalyticDashboard extends Component {
             '#FFCA28', '#29B6F6', '#EF5350', '#9CCC65', '#FF5722'
         ];
 
-        new Chart(ctx, {
+        this.chart = new Chart(ctx, {
             type: 'pie',
             data: {
                 labels: labels,
@@ -222,6 +264,14 @@ export class AnalyticDashboard extends Component {
             },
             options: {
                 responsive: true,
+                onClick: (event) => {
+                    const activePoints = this.chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                    if (activePoints.length) {
+                        const firstPoint = activePoints[0];
+                        const projetCode = labels[firstPoint.index];
+                        this.navigateToProjet(projetCode);
+                    }
+                },
                 plugins: {
                     tooltip: {
                         callbacks: {
@@ -247,6 +297,28 @@ export class AnalyticDashboard extends Component {
             views: [[false, "list"], [false, "form"]],
             target: 'current',
             domain: [['name.code', '=', projetCode]],
+        });
+    }
+
+    showCompletedProjects() {
+        this.action.doAction({
+            type: 'ir.actions.act_window',
+            name: 'Projets Terminés',
+            res_model: 'analytic.dashboard',
+            views: [[false, 'list'], [false, 'form']],
+            target: 'current',
+            domain: [['pourcentage_avancement', '>=', 1]], // Filtrer pour les projets terminés
+        });
+    }
+
+    showOngoingProjects() {
+        this.action.doAction({
+            type: 'ir.actions.act_window',
+            name: 'Projets en Cours',
+            res_model: 'analytic.dashboard',
+            views: [[false, 'list'], [false, 'form']],
+            target: 'current',
+            domain: [['pourcentage_avancement', '<', 1]], // Filtrer pour les projets en cours
         });
     }
 }

@@ -213,28 +213,38 @@ class AnalyticDashboard(models.Model):
                 'pourcentage_avancement': projet.pourcentage_avancement,
                 'resultat_chantier_cumule': projet.resultat_chantier_cumule,
                 'ca_final': projet.ca_final,
+                'date': projet.date,  
             })
         
         return projets_data
 
 
-    def get_resultat_chantier_total(self):
-        """
-        Calcule et retourne le résultat chantier total de tous les projets
-        """
-        total_resultat_chantier = sum(projet.resultat_chantier_cumule for projet in self.search([]))
-        return {'resultat_chantier_total': total_resultat_chantier}
+    @api.model
+    def get_resultat_chantier_total(self, start_date=None, end_date=None):
+        # Logique pour calculer le résultat chantier total selon les dates
+        domain = []
+        if start_date:
+            domain.append(('date', '>=', start_date))
+        if end_date:
+            domain.append(('date', '<=', end_date))
 
-    def get_progression_moyenne(self):
-        """
-        Calcule la progression moyenne des projets
-        """
-        projets = self.search([])
-        if projets:
-            moyenne_progression = sum(projet.pourcentage_avancement for projet in projets) / len(projets)
-        else:
-            moyenne_progression = 0
-        return {'progression_moyenne': moyenne_progression}
+        total = sum(self.search(domain).mapped('resultat_chantier_cumule'))
+        return {'resultat_chantier_total': total}
+    
+
+    @api.model
+    def get_progression_moyenne(self, start_date=None, end_date=None):
+        # Logique pour calculer la progression moyenne selon les dates
+        domain = []
+        if start_date:
+            domain.append(('date', '>=', start_date))
+        if end_date:
+            domain.append(('date', '<=', end_date))
+
+        progression = self.search(domain).mapped('pourcentage_avancement')
+        if progression:
+            return {'progression_moyenne': sum(progression) / len(progression)}
+        return {'progression_moyenne': 0}
     
     def get_statistiques_projets(self):
         """
@@ -262,8 +272,9 @@ class AnalyticDashboard(models.Model):
                 'libelle': projet['libelle'],
                 'pourcentage_avancement': projet['pourcentage_avancement'],
                 'resultat_chantier_cumule': projet['resultat_chantier_cumule'],
-                'ca_final': projet['ca_final']
+                'ca_final': projet['ca_final'],
+                'date': projet['date'], 
             }
             projets_donnees.append(projet_donnees)  
         
-        return projets_donnees 
+        return projets_donnees

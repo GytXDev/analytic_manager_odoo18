@@ -4,7 +4,7 @@
             <div class="container-fluid py-2">
                 <!-- Title -->
                 <div class="ms-3">
-                    <h3 class="mb-0 h4 font-weight-bolder">Module de gestion analytique</h3>
+                    <h3 class="mb-0 h4 font-weight-bolder">Tableau de Bord Analytique</h3>
                     <br />
                 </div>
                 <div class="analytic-manager style-switcher">
@@ -31,12 +31,12 @@
                 </div>
                 <!-- Stat Cards -->
                 <div class="row">
-                    <div class="col-lg-3 col-md-6 col-sm-12">
+                    <div class="col-lg-3 col-md-6 col-sm-12" id="completed-projects-card">
                         <div class="card">
                             <div class="card-header">
                                 <h6>Projets terminés</h6>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body" style="cursor: pointer;">
                                 <p><t t-esc="state.projetsTerminesCount" /></p>
                             </div>
                         </div>
@@ -51,12 +51,12 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-lg-3 col-md-6 col-sm-12">
+                    <div class="col-lg-3 col-md-6 col-sm-12" id="ongoing-projects-card">
                         <div class="card">
                             <div class="card-header">
-                                <h6>Projet en cours</h6>
+                                <h6>Projets en Cours</h6>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body" style="cursor: pointer;">
                                 <p><t t-esc="state.projetsEnCoursCount" /></p>
                             </div>
                         </div>

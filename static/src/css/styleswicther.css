@@ -24,8 +24,9 @@
     margin-right: 20px;
     height: 48px;
     width: 48px;
-    background: #4caf50;
-    color: white;
+    background: white;
+    color: #007bff;
+    /* Bleu */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -38,14 +39,16 @@
 
 .analytic-manager.style-switcher-toggler:hover {
     transform: scale(1.1);
-    background: #43a047;
+    background: #e7f1ff;
+    /* Légère teinte de bleu clair */
 }
 
 .analytic-manager.style-switcher h3 {
     font-size: 18px;
     font-weight: 600;
     margin-bottom: 20px;
-    color: #4caf50;
+    color: #007bff;
+    /* Bleu */
     text-align: center;
 }
 
@@ -64,7 +67,8 @@
 }
 
 .analytic-manager.period-dropdown:hover {
-    background-color: #e8f5e9;
+    background-color: #e7f1ff;
+    /* Légère teinte de bleu clair */
 }
 
 /* DATE RANGE */
@@ -94,12 +98,14 @@
 }
 
 .analytic-manager.date-input input:hover {
-    background: #e8f5e9;
+    background: #e7f1ff;
+    /* Légère teinte de bleu clair */
 }
 
 .analytic-manager.date-input input:focus {
     background: white;
-    box-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+    /* Bleu */
 }
 
 /* BUTTON */
@@ -107,7 +113,8 @@
     padding: 12px 20px;
     font-size: 14px;
     color: white;
-    background-color: #4caf50;
+    background-color: #007bff;
+    /* Bleu */
     border: none;
     border-radius: 8px;
     cursor: pointer;
@@ -118,7 +125,8 @@
 }
 
 .analytic-manager.btn-submit:hover {
-    background-color: #43a047;
+    background-color: #0056b3;
+    /* Bleu foncé */
     transform: translateY(-2px);
 }
 
@@ -129,7 +137,6 @@
 /* NEW ICON CLASS */
 .analytic-manager.style-switcher-toggler.s-icon {
     font-size: 22px;
-    /* Adjust the size of the icon */
-    color: white;
-    /* Icon color */
+    color: #007bff;
+    /* Bleu */
 }
