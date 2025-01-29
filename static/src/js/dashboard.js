@@ -55,6 +55,65 @@ export class AnalyticDashboard extends Component {
             });
         });
 
+        // Fonction de recherche dynamique sur le champ de saisie
+        document.getElementById('search-project-code').addEventListener('input', (event) => {
+            const searchTerm = event.target.value.toLowerCase(); // Récupérer le texte de recherche en minuscule
+
+            // Filtrer les projets en fonction du code projet
+            const filteredProjets = this.state.projetsEnCours.concat(this.state.projetsTermines).filter(projet =>
+                projet.code_projet.toLowerCase().includes(searchTerm) // Filtrer sur le code projet
+            );
+
+            // Mettre à jour dynamiquement le tableau avec les projets filtrés
+            const tableBody = document.getElementById('projects-table-body');
+            tableBody.innerHTML = ''; // Vider le tableau existant
+
+            filteredProjets.forEach(projet => {
+                const row = document.createElement('tr');
+
+                // Code Projet
+                const codeProjetCell = document.createElement('td');
+                const codeProjetText = document.createElement('h6');
+                codeProjetText.classList.add('text-sm');
+                codeProjetText.textContent = projet.code_projet;
+                codeProjetCell.appendChild(codeProjetText);
+                row.appendChild(codeProjetCell);
+
+                // Budget (CFA)
+                const budgetCell = document.createElement('td');
+                budgetCell.classList.add('text-center');
+                budgetCell.textContent = projet.ca_final ? projet.ca_final.toLocaleString() : '0';
+                row.appendChild(budgetCell);
+
+                // Avancement
+                const progressCell = document.createElement('td');
+                const progressWrapper = document.createElement('div');
+                progressWrapper.classList.add('progress-wrapper', 'w-75', 'mx-auto');
+                const progressBarContainer = document.createElement('div');
+                progressBarContainer.classList.add('progress');
+                const progressBar = document.createElement('div');
+                progressBar.classList.add('progress-bar', 'bg-gradient-info');
+                progressBar.style.width = `${projet.pourcentage_avancement * 100}%`;
+
+                progressBarContainer.appendChild(progressBar);
+                progressWrapper.appendChild(progressBarContainer);
+
+                const progressText = document.createElement('small');
+                progressText.textContent = `${(projet.pourcentage_avancement * 100).toFixed(0)}%`;
+                progressWrapper.appendChild(progressText);
+
+                progressCell.appendChild(progressWrapper);
+                row.appendChild(progressCell);
+
+                // Ajout du gestionnaire de clic sur la ligne
+                row.addEventListener('click', () => {
+                    this.navigateToProjet(projet.code_projet);
+                });
+
+                tableBody.appendChild(row);
+            });
+        });
+
         // Gestion du sélecteur de période
         const periodSelector = document.getElementById('period-selector');
         const dateRangeDiv = document.getElementById('date-range');
@@ -142,6 +201,7 @@ export class AnalyticDashboard extends Component {
         }
     }
 
+    // Fonction de chargement des projets avec filtre dynamique
     async loadProjets(dateFilter = {}) {
         try {
             const allProjets = await rpc('/dashboard/liste_projets', {});
@@ -172,6 +232,7 @@ export class AnalyticDashboard extends Component {
                 const tableBody = document.getElementById('projects-table-body');
                 tableBody.innerHTML = ''; // Vider le tableau existant
 
+                // Ajout des lignes de projets
                 filteredProjets.forEach(projet => {
                     const row = document.createElement('tr');
 
@@ -228,98 +289,98 @@ export class AnalyticDashboard extends Component {
         }
     }
 
-    generateChart() {
-        const ctx = document.getElementById('ResultatChart').getContext('2d');
+generateChart() {
+    const ctx = document.getElementById('ResultatChart').getContext('2d');
 
-        // Vérifiez si un graphique existe déjà
-        if (this.chart) {
-            this.chart.destroy(); // Détruire le graphique existant
-        }
+    // Vérifiez si un graphique existe déjà
+    if (this.chart) {
+        this.chart.destroy(); // Détruire le graphique existant
+    }
 
-        if (!this.state.projetsData || !this.state.projetsData.length) {
-            console.error("Pas de données valides pour générer le graphique !");
-            return;
-        }
+    if (!this.state.projetsData || !this.state.projetsData.length) {
+        console.error("Pas de données valides pour générer le graphique !");
+        return;
+    }
 
-        const labels = this.state.projetsData.map(projet => projet.code);
-        const data = this.state.projetsData.map(projet => projet.resultChantier);
+    const labels = this.state.projetsData.map(projet => projet.code);
+    const data = this.state.projetsData.map(projet => projet.resultChantier);
 
-        const backgroundColors = [
-            '#42A5F5', '#66BB6A', '#FFA726', '#FF7043', '#8D6E63',
-            '#AB47BC', '#26C6DA', '#FFEE58', '#D4E157', '#EC407A',
-            '#7E57C2', '#5C6BC0', '#26A69A', '#8D6E63', '#78909C',
-            '#FFCA28', '#29B6F6', '#EF5350', '#9CCC65', '#FF5722'
-        ];
+    const backgroundColors = [
+        '#42A5F5', '#66BB6A', '#FFA726', '#FF7043', '#8D6E63',
+        '#AB47BC', '#26C6DA', '#FFEE58', '#D4E157', '#EC407A',
+        '#7E57C2', '#5C6BC0', '#26A69A', '#8D6E63', '#78909C',
+        '#FFCA28', '#29B6F6', '#EF5350', '#9CCC65', '#FF5722'
+    ];
 
-        this.chart = new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Résultat Chantier (CFA)',
-                    data: data,
-                    backgroundColor: backgroundColors,
-                }],
+    this.chart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Résultat Chantier (CFA)',
+                data: data,
+                backgroundColor: backgroundColors,
+            }],
+        },
+        options: {
+            responsive: true,
+            onClick: (event) => {
+                const activePoints = this.chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                if (activePoints.length) {
+                    const firstPoint = activePoints[0];
+                    const projetCode = labels[firstPoint.index];
+                    this.navigateToProjet(projetCode);
+                }
             },
-            options: {
-                responsive: true,
-                onClick: (event) => {
-                    const activePoints = this.chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-                    if (activePoints.length) {
-                        const firstPoint = activePoints[0];
-                        const projetCode = labels[firstPoint.index];
-                        this.navigateToProjet(projetCode);
-                    }
-                },
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function (context) {
-                                return `Resultat Chantier: ${context.raw.toLocaleString()} CFA`;
-                            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            return `Resultat Chantier: ${context.raw.toLocaleString()} CFA`;
                         },
                     },
-                    legend: {
-                        position: 'top',
-                    },
+                },
+                legend: {
+                    position: 'top',
                 },
             },
-        });
-    }
+        },
+    });
+}
 
-    // Méthode pour naviguer vers un projet spécifique
-    navigateToProjet(projetCode) {
-        this.action.doAction({
-            type: 'ir.actions.act_window',
-            name: `Détails du projet ${projetCode}`,
-            res_model: 'analytic.dashboard',
-            views: [[false, "list"], [false, "form"]],
-            target: 'current',
-            domain: [['name.code', '=', projetCode]],
-        });
-    }
+// Méthode pour naviguer vers un projet spécifique
+navigateToProjet(projetCode) {
+    this.action.doAction({
+        type: 'ir.actions.act_window',
+        name: `Détails du projet ${projetCode}`,
+        res_model: 'analytic.dashboard',
+        views: [[false, "list"], [false, "form"]],
+        target: 'current',
+        domain: [['name.code', '=', projetCode]],
+    });
+}
 
-    showCompletedProjects() {
-        this.action.doAction({
-            type: 'ir.actions.act_window',
-            name: 'Projets Terminés',
-            res_model: 'analytic.dashboard',
-            views: [[false, 'list'], [false, 'form']],
-            target: 'current',
-            domain: [['pourcentage_avancement', '>=', 1]], // Filtrer pour les projets terminés
-        });
-    }
+showCompletedProjects() {
+    this.action.doAction({
+        type: 'ir.actions.act_window',
+        name: 'Projets Terminés',
+        res_model: 'analytic.dashboard',
+        views: [[false, 'list'], [false, 'form']],
+        target: 'current',
+        domain: [['pourcentage_avancement', '>=', 1]], // Filtrer pour les projets terminés
+    });
+}
 
-    showOngoingProjects() {
-        this.action.doAction({
-            type: 'ir.actions.act_window',
-            name: 'Projets en Cours',
-            res_model: 'analytic.dashboard',
-            views: [[false, 'list'], [false, 'form']],
-            target: 'current',
-            domain: [['pourcentage_avancement', '<', 1]], // Filtrer pour les projets en cours
-        });
-    }
+showOngoingProjects() {
+    this.action.doAction({
+        type: 'ir.actions.act_window',
+        name: 'Projets en Cours',
+        res_model: 'analytic.dashboard',
+        views: [[false, 'list'], [false, 'form']],
+        target: 'current',
+        domain: [['pourcentage_avancement', '<', 1]], // Filtrer pour les projets en cours
+    });
+}
 }
 
 registry.category('actions').add('dashboard_analytic', AnalyticDashboard);

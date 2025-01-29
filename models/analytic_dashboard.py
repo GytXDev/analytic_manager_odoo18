@@ -106,19 +106,23 @@ class AnalyticDashboard(models.Model):
     @api.depends('name')
     def _compute_factures_cumulees(self):
         """
-        Calcule le total des factures fournisseurs associées au compte analytique sélectionné.
+        Calcule le total hors taxes des factures fournisseurs associées au compte analytique sélectionné.
         """
         for record in self:
             if record.name:
-                # Recherche des lignes analytiques pour les factures fournisseurs
-                supplier_invoices = self.env['account.move.line'].search([
-                    ('analytic_distribution', '=', record.name.id),  # Distribution analytique liée
-                    ('move_id.move_type', '=', 'in_invoice'),  # Factures fournisseurs
-                    ('move_id.state', '=', 'posted'),  # Factures validées
-                ])
+                # Recherche des factures fournisseurs liées à ce compte analytique
+                factures = self.env['account.move'].read_group(
+                    domain=[
+                        ('line_ids.analytic_distribution', 'in', [record.name.id]),  # Lignes analytiques liées
+                        ('move_type', '=', 'in_invoice'),  # Factures fournisseurs
+                        ('state', '=', 'posted')  # Factures validées
+                    ],
+                    fields=['amount_untaxed_in_currency_signed:sum'],
+                    groupby=[]
+                )
 
-                # Total des montants des factures fournisseurs
-                record.factures_cumulees = sum(line.move_id.amount_total for line in supplier_invoices)
+                # Récupération de la somme des montants hors taxes
+                record.factures_cumulees = factures[0]['amount_untaxed_in_currency_signed'] if factures else 0.0
             else:
                 record.factures_cumulees = 0.0
 
@@ -131,31 +135,27 @@ class AnalyticDashboard(models.Model):
         for record in self:
             record.depenses_cumulees = round(record.factures_cumulees + (record.od_facture or 0), 2)
 
-
+    # Calcule l'activité cumulées
     @api.depends('name')
     def _compute_activite_cumulee(self):
+        """
+        Calcule le total hors taxes (`amount_untaxed_in_currency_signed`) des factures clients
+        associées au compte analytique sélectionné.
+        """
         for record in self:
             if record.name:
-                # Recherche des factures clients associées
-                client_invoices = self.env['account.move.line'].search([
-                    ('analytic_distribution', '=', record.name.id),
+                # Trouver toutes les factures clients liées au compte analytique
+                move_ids = self.env['account.move.line'].search([
+                    ('analytic_distribution', 'in', [record.name.id]),
                     ('move_id.move_type', '=', 'out_invoice'),
-                    ('move_id.state', '=', 'posted'),
-                ])
-                # Calcul de l'activité cumulée
-                record.activite_cumulee = sum(line.move_id.amount_total for line in client_invoices)
+                    ('move_id.state', '=', 'posted')
+                ]).mapped('move_id')
+
+                # Calcul du montant hors taxe cumulé
+                record.activite_cumulee = sum(move.amount_untaxed_in_currency_signed for move in move_ids)
             else:
                 record.activite_cumulee = 0.0
 
-
-
-    @api.depends('activite_cumulee', 'ca_final')
-    def _compute_pourcentage_avancement(self):
-        for record in self:
-            if record.ca_final:
-                record.pourcentage_avancement = round((record.activite_cumulee or 0) / record.ca_final, 2)
-            else:
-                record.pourcentage_avancement = 0
 
 
     @api.depends('activite_cumulee', 'depenses_cumulees')
@@ -167,6 +167,15 @@ class AnalyticDashboard(models.Model):
             else:
                 # Calcule le résultat chantier cumulé uniquement si les deux valeurs sont non nulles
                 record.resultat_chantier_cumule = round(record.activite_cumulee - record.depenses_cumulees, 2)
+
+
+    @api.depends('activite_cumulee', 'ca_final')
+    def _compute_pourcentage_avancement(self):
+        for record in self:
+            if record.ca_final:
+                record.pourcentage_avancement = round((record.activite_cumulee or 0) / record.ca_final, 2)
+            else:
+                record.pourcentage_avancement = 0
 
 
      # Calcule l'écart d'activité par rapport au mois précédent
