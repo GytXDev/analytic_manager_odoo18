@@ -21,7 +21,7 @@
                         <div class="analytic-manager date-input">
                             <label for="start-date">Du :</label>
                             <input type="date" id="start-date" />
-                        </div>
+                        </div>, 
                         <div class="analytic-manager date-input">
                             <label for="end-date">Au :</label>
                             <input type="date" id="end-date" />
@@ -79,6 +79,9 @@
                             <div class="card-header pb-0">
                                 <h6>Analyse des Projets</h6>
                             </div>
+                            <div class="analytic-manager search-container">
+                                <input class="form-control mr-sm-2" type="text" placeholder="Rechercher" id="search-project-code" aria-label="Rechercher"/>
+                            </div>
                             <div class="card-body px-0 pb-2">
                                 <div class="table-responsive">
                                     <table class="table align-items-center mb-0">
@@ -88,7 +91,7 @@
                                                     Code Projet
                                                 </th>
                                                 <th class="text-uppercase text-secondary text-xs font-weight-bolder text-center">
-                                                    Budget (CFA)
+                                                    Chiffre d'Affaire (CFA)
                                                 </th>
                                                 <th class="text-uppercase text-secondary text-xs font-weight-bolder text-center">
                                                     Avancement

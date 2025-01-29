@@ -120,7 +120,6 @@ export class AnalyticDashboard extends Component {
         try {
             const result = await rpc('/dashboard/progression_moyenne', dateFilter);
             let progression = result?.progression_moyenne || 0;
-            console.log("Progression moyenne:", result);
 
             if (typeof progression === 'number' && !isNaN(progression)) {
                 this.state.progressionMoyenne = (progression * 100).toFixed(2); // En pourcentage

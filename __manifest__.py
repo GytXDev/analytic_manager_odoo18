@@ -31,6 +31,7 @@
             'analytic_manager/static/src/xml/excel_analytic.xml',
             'analytic_manager/static/src/css/material-dashboard.css',
             'analytic_manager/static/src/css/styleswicther.css',
+            'analytic_manager/static/src/css/search.css',
         ],
     },
     'demo': [

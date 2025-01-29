@@ -1,5 +1,6 @@
 <!-- views\analytic_menu.xml -->
 <odoo>
     <!-- Menu -->
-    <menuitem id="menu_analytic_manager" name="Analytic Manager" sequence="10"/>
+    <menuitem id="menu_analytic_manager" name="Analytic Manager" web_icon="analytic_manager,static/description/analytic.png" sequence="10"/>
 </odoo>
+ 
