@@ -248,7 +248,8 @@ class AnalyticDashboard(models.Model):
         
         for projet in projets:
             projets_data.append({
-                'code_projet': projet.name.code,
+                'id_code_project': projet.name.id,
+                'code_projet': projet.name.name,
                 'libelle': projet.libelle,
                 'pourcentage_avancement': projet.pourcentage_avancement,
                 'resultat_chantier_cumule': projet.resultat_chantier_cumule,
@@ -257,6 +258,30 @@ class AnalyticDashboard(models.Model):
             })
         
         return projets_data
+
+
+    @api.model
+    def get_all_plans(self):
+        """
+        Retourne tous les plans analytiques disponibles.
+        """
+        plans = self.env['account.analytic.plan'].search([])
+        plans_data = []
+
+        print("Nombre de plans trouvés :", len(plans))
+
+        for plan in plans:
+            plans_data.append({
+                'id': plan.id,
+                'name': plan.name,
+            })
+            print("Plan ID:", plan.id, ", Nom:", plan.name)
+
+        # Retourne les données dans un format structuré
+        return {
+            'count': len(plans),
+            'plans': plans_data,
+        }
 
 
     @api.model
@@ -308,6 +333,7 @@ class AnalyticDashboard(models.Model):
 
         for projet in projets:
             projet_donnees = {
+                'id_code_project': projet['id_code_project'],
                 'code_projet': projet['code_projet'],
                 'libelle': projet['libelle'],
                 'pourcentage_avancement': projet['pourcentage_avancement'],

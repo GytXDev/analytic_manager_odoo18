@@ -21,6 +21,15 @@ export class ExcelAnalytic extends Component {
             }
         };
 
+        this.onClickShowAnalytic = async () => {
+            try {
+                const result = await rpc('/dashboard/liste_plans', {});
+                console.log(result.data); 
+            } catch (error) {
+                console.error("Erreur lors de l'appel RPC :", error)
+            }
+        }
+
         onMounted(async () => {
         });
     }

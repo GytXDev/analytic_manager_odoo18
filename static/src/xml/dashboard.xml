@@ -83,7 +83,7 @@
                                 <input class="form-control mr-sm-2" type="text" placeholder="Rechercher" id="search-project-code" aria-label="Rechercher"/>
                             </div>
                             <div class="card-body px-0 pb-2">
-                                <div class="table-responsive">
+                                <div class="table-responsive-analytic">
                                     <table class="table align-items-center mb-0">
                                         <thead>
                                             <tr>
@@ -112,6 +112,21 @@
                                 <h6>Répartition des résultats</h6>
                             </div>
                             <div class="card-body">
+                                <div>
+                                    <label for="planSelect">Sélectionnez un Plan Analytique:</label>
+                                    <select id="planSelect" onchange="this.loadProjets();">
+                                        <!-- Options ajoutées dynamiquement -->
+                                    </select>
+                                </div>
+                                <!-- <div>
+                                    <label for="dataSelect">Sélectionnez les Données à Afficher:</label>
+                                    <select id="dataSelect" onchange="this.loadProjets();">
+                                        <option value="resultat_chantier_cumule">Résultat Chantier</option>
+                                        <option value="factures_cumulees">Factures Cumulées</option>
+                                        <option value="depenses_cumulees">Dépenses Cumulées</option>
+                                        <option value="activite_cumulee">Activité Cumulée</option>
+                                    </select>
+                                </div> -->
                                 <canvas id="ResultatChart" height="250"></canvas>
                             </div>
                         </div>

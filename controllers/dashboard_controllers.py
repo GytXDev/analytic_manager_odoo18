@@ -49,3 +49,14 @@ class DashboardControllers(http.Controller):
 
         # Retourne le résultat avec le nombre de tableaux de bord créés
         return {'status': 'success', 'message': result}
+    
+
+    @http.route('/dashboard/liste_plans', type='json', auth='user', website=True)
+    def get_plans(self):
+        """
+        Retourne la liste des plans analytiques.
+        """
+        plans = request.env['analytic.dashboard'].sudo()
+        result = plans.get_all_plans()
+
+        return {'status': 'success', 'data': result}

@@ -5,7 +5,7 @@ from datetime import timedelta
 
 class AnalyticDashboard(models.Model):
     _name = 'analytic.dashboard'
-    _description = 'Tableau Analytique (Projet Unique)'
+    _description = 'Tableau Analytique'
 
     name = fields.Many2one(
         'account.analytic.account',
@@ -14,6 +14,10 @@ class AnalyticDashboard(models.Model):
         help="Sélectionnez le compte analytique associé au projet.",
         domain=[('code', '!=', False)]  
     )
+
+    _sql_constraints = [
+        ('unique_analytic_account', 'unique(name)', 'Un tableau analytique existe déjà pour ce projet !')
+    ]
 
     libelle = fields.Char(
         string="Libellé",
@@ -73,7 +77,7 @@ class AnalyticDashboard(models.Model):
         compute='_compute_ecart_depenses', 
         store=False
     )
- 
+
     # Récupère la réference et plan analytique asssocié au compte analytique / code projet
     @api.onchange('name')
     def _onchange_name(self):
@@ -90,82 +94,54 @@ class AnalyticDashboard(models.Model):
                 record.plan_id = False
 
 
-    @api.depends('marche_initial', 'ts')
-    def _compute_ca_final(self):
-        for record in self:
-            record.ca_final = round((record.marche_initial or 0) + (record.ts or 0), 2)
-
-    # Calcule le total des factures fournisseurs
-    @api.depends('name')
-    def _compute_factures_cumulees(self):
+    # Ajout des méthodes supplémentaires pour l'analyse des projets
+    def get_all_projets(self):
         """
-        Calcule le total hors taxes des factures fournisseurs associées au compte analytique sélectionné.
+        Retourne tous les projets, qu'ils soient en cours ou terminés.
         """
-        for record in self:
-            if record.name:
-                # Recherche des factures fournisseurs liées à ce compte analytique
-                factures = self.env['account.move'].read_group(
-                    domain=[
-                        ('line_ids.analytic_distribution', 'in', [record.name.id]),  # Lignes analytiques liées
-                        ('move_type', '=', 'in_invoice'),  # Factures fournisseurs
-                        ('state', '=', 'posted')  # Factures validées
-                    ],
-                    fields=['amount_untaxed_in_currency_signed:sum'],
-                    groupby=[]
-                )
+        projets = self.search([])
+        projets_data = []
+        
+        for projet in projets:
+            projets_data.append({
+                'id_code_project': projet.name.id,
+                'code_projet': projet.name.name,
+                'libelle': projet.libelle,
+                'pourcentage_avancement': projet.pourcentage_avancement,
+                'resultat_chantier_cumule': projet.resultat_chantier_cumule,
+                'ca_final': projet.ca_final,
+                'date': projet.date,
+                'plan_id': projet.plan_id.id, 
+                'factures_cumulees': projet.factures_cumulees,
+                'depenses_cumulees': projet.depenses_cumulees,  
+                'activite_cumulee': projet.activite_cumulee,  
+            })
+        
+        return projets_data
 
-                # Récupération de la somme des montants hors taxes
-                record.factures_cumulees = factures[0]['amount_untaxed_in_currency_signed'] if factures else 0.0
-            else:
-                record.factures_cumulees = 0.0
 
-     # Calcule les dépenses cumulées
-    @api.depends('factures_cumulees', 'od_facture')
-    def _compute_depenses_cumulees(self):
+    def get_donnees_projets_independantes(self):
         """
-        Dépenses cumulées = Factures Cumulées (fournisseurs) + OD Facture.
+        Retourne une liste des données indépendantes pour chaque projet.
+        Chaque projet est représenté par un dictionnaire avec ses informations clés.
         """
-        for record in self:
-            record.depenses_cumulees = round(record.factures_cumulees + (record.od_facture or 0), 2)
+        projets = self.get_all_projets() 
+        projets_donnees = [] 
 
-    # Calcule l'activité cumulées
-    @api.depends('name')
-    def _compute_activite_cumulee(self):
-        """
-        Calcule le total hors taxes (`amount_untaxed_in_currency_signed`) des factures clients
-        associées au compte analytique sélectionné.
-        """
-        for record in self:
-            if record.name:
-                # Trouver toutes les factures clients liées au compte analytique
-                move_ids = self.env['account.move.line'].search([
-                    ('analytic_distribution', 'in', [record.name.id]),
-                    ('move_id.move_type', '=', 'out_invoice'),
-                    ('move_id.state', '=', 'posted')
-                ]).mapped('move_id')
-
-                # Calcul du montant hors taxe cumulé
-                record.activite_cumulee = sum(move.amount_untaxed_in_currency_signed for move in move_ids)
-            else:
-                record.activite_cumulee = 0.0
-
-
-
-    @api.depends('activite_cumulee', 'depenses_cumulees')
-    def _compute_resultat_chantier_cumule(self):
-        for record in self:
-            # Vérifie si l'une des valeurs est nulle
-            if record.activite_cumulee is None or record.depenses_cumulees is None:
-                record.resultat_chantier_cumule = 0.0  # Ou une autre valeur par défaut si nécessaire
-            else:
-                # Calcule le résultat chantier cumulé uniquement si les deux valeurs sont non nulles
-                record.resultat_chantier_cumule = round(record.activite_cumulee + record.depenses_cumulees, 2)
-
-
-    @api.depends('activite_cumulee', 'ca_final')
-    def _compute_pourcentage_avancement(self):
-        for record in self:
-            if record.ca_final:
-                record.pourcentage_avancement = round((record.activite_cumulee or 0) / record.ca_final, 2)
-            else:
-                record.pourcentage_avancement = 0
+        for projet in projets:
+            projet_donnees = {
+                'id_code_project': projet['id_code_project'],
+                'code_projet': projet['code_projet'],
+                'libelle': projet['libelle'],
+                'pourcentage_avancement': projet['pourcentage_avancement'],
+                'resultat_chantier_cumule': projet['resultat_chantier_cumule'],
+                'ca_final': projet['ca_final'],
+                'date': projet['date'],
+                'factures_cumulees': projet['factures_cumulees'], 
+                'depenses_cumulees': projet['depenses_cumulees'],
+                'activite_cumulee' : projet['activite_cumulee'],
+                
+            }
+            projets_donnees.append(projet_donnees)  
+        
+        return projets_donnees
