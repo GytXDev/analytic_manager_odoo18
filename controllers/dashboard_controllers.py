@@ -1,4 +1,4 @@
-# controllers/dashboard_controllers.py
+# analytic_manager/controllers/dashboard_controllers.py
 from odoo import http
 from odoo.http import request
 
@@ -38,3 +38,14 @@ class DashboardControllers(http.Controller):
         """
         projects = request.env['analytic.dashboard'].sudo()
         return projects.get_donnees_projets_independantes()
+    
+    @http.route('/dashboard/update_dashboard', type="json", auth="user", website=True)
+    def create_dashboard_for_all_analytic_accounts(self):
+        """
+        Met à jour le tableau de bord en créant les comptes analytiques dans l'enregistrement 'analytic.dashboard'.
+        """
+        analytic_accounts = request.env['analytic.dashboard'].sudo()
+        result = analytic_accounts.create_dashboard_for_all_analytic_accounts()
+
+        # Retourne le résultat avec le nombre de tableaux de bord créés
+        return {'status': 'success', 'message': result}

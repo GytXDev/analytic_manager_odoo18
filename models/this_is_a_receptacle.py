@@ -5,7 +5,7 @@ from datetime import timedelta
 
 class AnalyticDashboard(models.Model):
     _name = 'analytic.dashboard'
-    _description = 'Tableau Analytique'
+    _description = 'Tableau Analytique (Projet Unique)'
 
     name = fields.Many2one(
         'account.analytic.account',
@@ -14,10 +14,6 @@ class AnalyticDashboard(models.Model):
         help="Sélectionnez le compte analytique associé au projet.",
         domain=[('code', '!=', False)]  
     )
-
-    _sql_constraints = [
-        ('unique_analytic_account', 'unique(name)', 'Un tableau analytique existe déjà pour ce projet !')
-    ]
 
     libelle = fields.Char(
         string="Libellé",
@@ -77,31 +73,6 @@ class AnalyticDashboard(models.Model):
         compute='_compute_ecart_depenses', 
         store=False
     )
-
-
-    def create_dashboard_for_all_analytic_accounts(self):
-        """
-        Cette méthode crée automatiquement un tableau de bord pour chaque compte analytique existant dans le système.
-        """
-        analytic_accounts = self.env['account.analytic.account'].search([])  # Recherche de tous les comptes analytiques
-        created_count = 0
-        for account in analytic_accounts:
-            # Vérifie si un tableau analytique existe déjà pour ce compte analytique
-            existing_dashboard = self.search([('name', '=', account.id)])
-            if not existing_dashboard:
-                # Crée un enregistrement dans 'analytic.dashboard' pour chaque compte analytique
-                self.create({
-                    'name': account.id,
-                    'libelle': account.code,
-                    'plan_id': account.plan_id.id,
-                })
-                created_count += 1
-
-        if created_count > 0:
-            return f"{created_count} tableau(x) de bord créé(s)"
-        else:
-            return "Le tableau de bord est déjà à jour."
-
  
     # Récupère la réference et plan analytique asssocié au compte analytique / code projet
     @api.onchange('name')
@@ -117,15 +88,6 @@ class AnalyticDashboard(models.Model):
             else:
                 record.libelle = False
                 record.plan_id = False
-
-
-    @api.model
-    def create(self, vals):
-        if 'name' in vals:
-            existing_dashboard = self.search([('name', '=', vals['name'])])
-            if existing_dashboard:
-                raise ValidationError(_('Un tableau analytique existe déjà pour ce projet !'))
-        return super(AnalyticDashboard, self).create(vals)
 
 
     @api.depends('marche_initial', 'ts')
@@ -207,114 +169,3 @@ class AnalyticDashboard(models.Model):
                 record.pourcentage_avancement = round((record.activite_cumulee or 0) / record.ca_final, 2)
             else:
                 record.pourcentage_avancement = 0
-
-
-     # Calcule l'écart d'activité par rapport au mois précédent
-    @api.depends('name', 'activite_cumulee')
-    def _compute_ecart_activite(self):
-        for record in self:
-            previous_month_date = fields.Date.today() - timedelta(days=30)
-            previous_period = self.env['analytic.dashboard'].search([
-                ('name', '=', record.name.id),
-                ('date', '=', previous_month_date),
-            ], limit=1)
-            if previous_period:
-                record.ecart_activite = round(record.activite_cumulee - previous_period.activite_cumulee, 2)
-            else:
-                record.ecart_activite = 0.0
-
-    # Calcule l'écart de dépenses par rapport au mois précédent
-    @api.depends('name', 'depenses_cumulees')
-    def _compute_ecart_depenses(self):
-        for record in self:
-            previous_month_date = fields.Date.today() - timedelta(days=30)
-            previous_period = self.env['analytic.dashboard'].search([
-                ('name', '=', record.name.id),
-                ('date', '=', previous_month_date),
-            ], limit=1)
-            if previous_period:
-                record.ecart_depenses = round(record.depenses_cumulees - previous_period.depenses_cumulees, 2)
-            else:
-                record.ecart_depenses = 0.0
-
-    
-    # Ajout des méthodes supplémentaires pour l'analyse des projets
-    def get_all_projets(self):
-        """
-        Retourne tous les projets, qu'ils soient en cours ou terminés.
-        """
-        projets = self.search([])
-        projets_data = []
-        
-        for projet in projets:
-            projets_data.append({
-                'code_projet': projet.name.code,
-                'libelle': projet.libelle,
-                'pourcentage_avancement': projet.pourcentage_avancement,
-                'resultat_chantier_cumule': projet.resultat_chantier_cumule,
-                'ca_final': projet.ca_final,
-                'date': projet.date,  
-            })
-        
-        return projets_data
-
-
-    @api.model
-    def get_resultat_chantier_total(self, start_date=None, end_date=None):
-        # Logique pour calculer le résultat chantier total selon les dates
-        domain = []
-        if start_date:
-            domain.append(('date', '>=', start_date))
-        if end_date:
-            domain.append(('date', '<=', end_date))
-
-        total = sum(self.search(domain).mapped('resultat_chantier_cumule'))
-        return {'resultat_chantier_total': total}
-    
-
-    @api.model
-    def get_progression_moyenne(self, start_date=None, end_date=None):
-        # Logique pour calculer la progression moyenne selon les dates
-        domain = []
-        if start_date:
-            domain.append(('date', '>=', start_date))
-        if end_date:
-            domain.append(('date', '<=', end_date))
-
-        progression = self.search(domain).mapped('pourcentage_avancement')
-        if progression:
-            return {'progression_moyenne': sum(progression) / len(progression)}
-        return {'progression_moyenne': 0}
-    
-    def get_statistiques_projets(self):
-        """
-        Retourne des statistiques générales sur les projets sans distinction entre projets en cours et terminés.
-        """
-        projets = self.get_all_projets()  
-        total_projets = len(projets) 
-        return {
-            'total_projets': total_projets,
-            'resultat_chantier_total': self.get_resultat_chantier_total().get('resultat_chantier_total', 0),
-            'progression_moyenne': self.get_progression_moyenne().get('progression_moyenne', 0),
-        }
-    
-    def get_donnees_projets_independantes(self):
-        """
-        Retourne une liste des données indépendantes pour chaque projet.
-        Chaque projet est représenté par un dictionnaire avec ses informations clés.
-        """
-        projets = self.get_all_projets() 
-        projets_donnees = [] 
-
-        for projet in projets:
-            projet_donnees = {
-                'code_projet': projet['code_projet'],
-                'libelle': projet['libelle'],
-                'pourcentage_avancement': projet['pourcentage_avancement'],
-                'resultat_chantier_cumule': projet['resultat_chantier_cumule'],
-                'ca_final': projet['ca_final'],
-                'date': projet['date'], 
-            }
-            projets_donnees.append(projet_donnees)  
-        
-        return projets_donnees

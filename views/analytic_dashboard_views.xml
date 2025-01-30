@@ -1,4 +1,4 @@
-<!-- views\analytic_dashboard_views.xml -->
+<!-- analytic_manager\views\analytic_dashboard_views.xml -->
 <odoo>
     <data>
 
@@ -11,11 +11,6 @@
                     <sheet>
                         <group colspan="2">
                             <group style="display: flex; flex-direction: column; gap: 20px;">
-                                <!-- Titre Exploitation -->
-                                <div style="display: flex; flex-direction: column; gap: 5px;">
-                                    <field name="exploitation" widget="statusbar" options="{'clickable': True}"/>
-                                </div>
-
                                 <!-- Titre Name -->
                                 <div style="display: flex; flex-direction: column; gap: 5px;">
                                     <label for="name" style="font-size: 1rem; font-weight: normal; color: #555;">Nom :</label>
@@ -89,7 +84,7 @@
             <field name="model">analytic.dashboard</field>
             <field name="arch" type="xml">
                 <list string="Vues Analytiques">
-                    <field name="exploitation"/>
+                    <field name="plan_id" string="Exploitation"/>
                     <field name="name"/>
                     <field name="libelle"/>
                     <field name="ts" widget="monetary" options="{'currency_field': 'company_currency_id'}"/>
