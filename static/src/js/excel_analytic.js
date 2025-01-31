@@ -10,17 +10,6 @@ export class ExcelAnalytic extends Component {
 
     setup() {
         this.action = useService("action");
-
-        // Gestionnaire d'événement pour le clic du bouton
-        this.onClickUpdateDashboard = async () => {
-            try {
-                const result = await rpc('/dashboard/update_dashboard', {});
-                console.log(result.message);
-            } catch (error) {
-                console.error("Erreur lors de l'appel RPC :", error);
-            }
-        };
-
         this.onClickShowAnalytic = async () => {
             try {
                 const result = await rpc('/dashboard/liste_plans', {});

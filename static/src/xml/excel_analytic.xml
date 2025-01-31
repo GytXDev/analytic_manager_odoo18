@@ -7,10 +7,6 @@
                     <h3 class="mb-0 h4 font-weight-bolder">Excel Analytique</h3>
                     <br />
                 </div>
-                    <button id="update_dashboard_button" class="btn btn-primary" t-on-click="onClickUpdateDashboard">
-                        Mettre à jour les tableaux de bord
-                    </button>
-
                     <button id="show_analytic_plan_button" class="btn btn-primary" t-on-click="onClickShowAnalytic">
                         Connaitre les plans analytiques
                     </button>

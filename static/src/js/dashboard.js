@@ -22,7 +22,18 @@ export class AnalyticDashboard extends Component {
     setup() {
         this.action = useService("action");
 
+        // Gestionnaire d'événement pour le clic du bouton
+        this.onClickUpdateDashboard = async () => {
+            try {
+                const result = await rpc('/dashboard/update_dashboard', {});
+                console.log(result.message);
+            } catch (error) {
+                console.error("Erreur lors de l'appel RPC :", error);
+            }
+        };
+
         onMounted(async () => {
+            await this.onClickUpdateDashboard();
             await this.loadResultatChantierTotal();
             await this.loadProgressionMoyenne();
             await this.loadStatistiquesProjets();
@@ -42,6 +53,7 @@ export class AnalyticDashboard extends Component {
             ongoingProjectsCard.addEventListener('click', () => {
                 this.showOngoingProjects();
             });
+
         });
     }
 
@@ -385,22 +397,27 @@ export class AnalyticDashboard extends Component {
 
     generateChart(selectedDataLabel = "Résultat Chantier (CFA)") {
         const ctx = document.getElementById('ResultatChart').getContext('2d');
+        const noDataMessage = document.getElementById('noDataMessage');
 
         if (this.chart) {
             this.chart.destroy();
         }
 
         if (!this.state.projetsData || !this.state.projetsData.length) {
-            console.error("Pas de données valides pour générer le graphique !");
+            noDataMessage.style.display = 'block'; // Afficher le message
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             return;
         }
 
         // Filtrer les projets avec des valeurs non nulles
         const filteredProjets = this.state.projetsData.filter(projet => projet.value > 0);
         if (!filteredProjets.length) {
-            console.error("Aucun projet avec des valeurs valides !");
+            noDataMessage.style.display = 'block'; // Afficher le message
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             return;
         }
+
+        noDataMessage.style.display = 'none'; // Cacher le message si des données sont présentes
 
         const labels = filteredProjets.map(projet => projet.code);
         const data = filteredProjets.map(projet => projet.value);

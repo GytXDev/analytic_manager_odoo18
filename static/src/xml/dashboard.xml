@@ -107,29 +107,31 @@
                         </div>
                     </div>
                     <div class="col-lg-4 col-sm-12">
-                        <div class="card">
-                            <div class="card-header pb-0">
-                                <h6>Répartition des résultats</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="custom-select-container">
-                                    <div class="select-group">
-                                        <select id="planSelect" class="custom-select">
-                                            <!-- Options ajoutées dynamiquement -->
-                                        </select>
-
-                                        <select id="dataSelect" class="custom-dropdown">
-                                            <option value="resultat_chantier_cumule">Résultat Chantier</option>
-                                            <option value="factures_cumulees">Factures Cumulées</option>
-                                            <option value="depenses_cumulees">Dépenses Cumulées</option>
-                                            <option value="activite_cumulee">Activité Cumulée</option>
-                                        </select>
-                                    </div>
+                    <div class="card">
+                        <div class="card-header pb-0">
+                            <h6>Répartition des résultats</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="custom-select-container">
+                                <div class="select-group">
+                                    <select id="planSelect" class="custom-select">
+                                        <!-- Options ajoutées dynamiquement -->
+                                    </select>
+                                    <select id="dataSelect" class="custom-dropdown">
+                                        <option value="resultat_chantier_cumule">Résultat Chantier</option>
+                                        <option value="factures_cumulees">Factures Cumulées</option>
+                                        <option value="depenses_cumulees">Dépenses Cumulées</option>
+                                        <option value="activite_cumulee">Activité Cumulée</option>
+                                    </select>
                                 </div>
-                                <canvas id="ResultatChart" height="250"></canvas>
                             </div>
+                            <canvas id="ResultatChart" height="250"></canvas>
+                                <div id="noDataMessage">
+                                   📉😐 Aucune donnée disponible
+                                </div>
                         </div>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
