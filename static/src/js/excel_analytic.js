@@ -15,7 +15,7 @@ export class ExcelAnalytic extends Component {
         this.onClickUpdateDashboard = async () => {
             try {
                 const result = await rpc('/dashboard/update_dashboard', {});
-                console.log(result.message); // Affiche le message retourné par la méthode Python
+                console.log(result.message);
             } catch (error) {
                 console.error("Erreur lors de l'appel RPC :", error);
             }
@@ -34,5 +34,4 @@ export class ExcelAnalytic extends Component {
         });
     }
 }
-
 registry.category('actions').add('excel_analytic', ExcelAnalytic);

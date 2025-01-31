@@ -27,6 +27,7 @@ export class AnalyticDashboard extends Component {
             await this.loadProgressionMoyenne();
             await this.loadStatistiquesProjets();
             await this.loadProjets();
+            await this.loadPlans();
             this.generateChart();
             this._eventListenersChart();
 
@@ -54,6 +55,17 @@ export class AnalyticDashboard extends Component {
                 }
             });
         });
+
+        // Attacher les événements dynamiquement
+        const planSelect = document.getElementById('planSelect');
+        const dataSelect = document.getElementById('dataSelect');
+
+        if (planSelect) {
+            planSelect.addEventListener("change", () => this.loadProjets());
+        }
+        if (dataSelect) {
+            dataSelect.addEventListener("change", () => this.loadProjets());
+        }
 
         // Fonction de recherche dynamique sur le champ de saisie
         document.getElementById('search-project-code').addEventListener('input', (event) => {
@@ -204,27 +216,77 @@ export class AnalyticDashboard extends Component {
     // Fonction pour charger les plans analytiques
     async loadPlans() {
         try {
-            const plans = await rpc('/dashboard/liste_plans', {}); 
+            const response = await rpc('/dashboard/liste_plans', {});  // Appel API
+            console.log("Réponse API reçue :", response);
+
+            // Vérifier si les données sont présentes
+            if (!response || response.status !== "success" || !response.data || !response.data.plans) {
+                console.error("Aucun plan trouvé ou réponse invalide :", response);
+                return;
+            }
+
+            const plans = response.data.plans;  // Récupérer les plans à partir de response.data
             const planSelect = document.getElementById('planSelect');
-            planSelect.innerHTML = ''; 
+
+            planSelect.innerHTML = ''; // Vider les options existantes
+
+            // Ajouter une option par défaut
+            const defaultOption = document.createElement('option');
+            defaultOption.value = "";
+            defaultOption.textContent = "Sélectionnez une Exploitation";
+            defaultOption.disabled = true;
+            defaultOption.selected = true;
+            planSelect.appendChild(defaultOption);
+
+            const allPlansOption = document.createElement('option');
+            allPlansOption.value = "";
+            allPlansOption.textContent = "Toutes les exploitations";
+            planSelect.appendChild(allPlansOption);
+
+            // Ajouter les options dynamiquement
             plans.forEach(plan => {
                 const option = document.createElement('option');
-                option.value = plan.id; 
-                option.textContent = plan.name; 
+                option.value = plan.id;  // Assure-toi que l'ID du plan est bien la valeur de l'option
+                option.textContent = plan.name;
                 planSelect.appendChild(option);
             });
+
+            console.log("Plans chargés avec succès :", plans);
+
+            // Attacher l'événement de changement sur le select pour afficher le nom et l'ID du plan choisi
+            if (planSelect) {
+                planSelect.addEventListener("change", () => {
+                    const selectedPlanId = planSelect.value;
+                    const selectedPlan = plans.find(plan => plan.id === parseInt(selectedPlanId));
+
+                    if (selectedPlan) {
+                        console.log(`Plan sélectionné: ID = ${selectedPlan.id}, Nom = ${selectedPlan.name}`);
+                    } else {
+                        console.log("Aucun plan sélectionné.");
+                    }
+
+                    this.loadProjets();  // Appeler la fonction pour charger les projets en fonction du plan sélectionné
+                });
+            }
+
         } catch (error) {
             console.error("Erreur lors de la récupération des plans :", error);
         }
     }
 
+
     // Fonction de chargement des projets avec filtre dynamique
     async loadProjets(dateFilter = {}) {
         try {
+            const selectedPlan = parseInt(document.getElementById('planSelect').value);  // Conversion en entier
+            const selectedData = document.getElementById('dataSelect').value || "resultat_chantier_cumule";
+
             const allProjets = await rpc('/dashboard/liste_projets', {});
+
             if (Array.isArray(allProjets)) {
+
                 // Filtrer par période si un filtre est fourni
-                const filteredProjets = allProjets.filter(projet => {
+                let filteredProjets = allProjets.filter(projet => {
                     const projetDate = new Date(projet.date);
                     if (dateFilter.start && dateFilter.end) {
                         return projetDate >= new Date(dateFilter.start) && projetDate <= new Date(dateFilter.end);
@@ -232,14 +294,27 @@ export class AnalyticDashboard extends Component {
                     return true; // Pas de filtre
                 });
 
+                // Afficher les plan_id des projets dans la console
+                filteredProjets.forEach(projet => {
+                    console.log(projet.plan_id); // Afficher le plan_id pour chaque projet
+                });
+
                 this.state.projetsEnCours = filteredProjets.filter(projet => projet.pourcentage_avancement < 1);
                 this.state.projetsTermines = filteredProjets.filter(projet => projet.pourcentage_avancement >= 1);
+
+                // Si aucun plan n'est sélectionné (Tous les plans), ne pas filtrer
+                if (selectedPlan) {
+                    filteredProjets = filteredProjets.filter(projet => projet.plan_id === selectedPlan);
+                    console.log("Filtrage par plan ID : ", selectedPlan);
+                } else {
+                    console.log("Affichage de tous les projets sans filtrage par plan.");
+                }
 
                 // Mettre à jour projetsData pour le graphique
                 this.state.projetsData = filteredProjets.map(projet => ({
                     code: projet.code_projet,
-                    resultChantier: projet.resultat_chantier_cumule,
-                    id: projet.id_code_project, // Ajout de l'ID dans les données pour le graphique
+                    value: projet[selectedData],
+                    id: projet.id_code_project,
                 }));
 
                 // Compter les projets
@@ -297,7 +372,7 @@ export class AnalyticDashboard extends Component {
                 });
 
                 // Appeler la fonction pour générer le graphique
-                this.generateChart();
+                this.generateChart(selectedData);
 
             } else {
                 console.error("La réponse n'est pas un tableau :", allProjets);
@@ -307,12 +382,12 @@ export class AnalyticDashboard extends Component {
         }
     }
 
-    generateChart() {
+
+    generateChart(selectedDataLabel = "Résultat Chantier (CFA)") {
         const ctx = document.getElementById('ResultatChart').getContext('2d');
 
-        // Vérifiez si un graphique existe déjà
         if (this.chart) {
-            this.chart.destroy(); // Détruire le graphique existant
+            this.chart.destroy();
         }
 
         if (!this.state.projetsData || !this.state.projetsData.length) {
@@ -320,16 +395,16 @@ export class AnalyticDashboard extends Component {
             return;
         }
 
-        // Filtrer les projets avec des résultats non nuls
-        const filteredProjets = this.state.projetsData.filter(projet => projet.resultChantier > 0);
+        // Filtrer les projets avec des valeurs non nulles
+        const filteredProjets = this.state.projetsData.filter(projet => projet.value > 0);
         if (!filteredProjets.length) {
-            console.error("Aucun projet avec des résultats valides !");
+            console.error("Aucun projet avec des valeurs valides !");
             return;
         }
 
         const labels = filteredProjets.map(projet => projet.code);
-        const data = filteredProjets.map(projet => projet.resultChantier);
-        const ids = filteredProjets.map(projet => projet.id); // Récupérer les IDs des projets
+        const data = filteredProjets.map(projet => projet.value);
+        const ids = filteredProjets.map(projet => projet.id);
 
         const backgroundColors = [
             '#42A5F5', '#66BB6A', '#FFA726', '#FF7043', '#8D6E63',
@@ -343,9 +418,9 @@ export class AnalyticDashboard extends Component {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Résultat Chantier (CFA)',
+                    label: selectedDataLabel,
                     data: data,
-                    backgroundColor: backgroundColors.slice(0, data.length), // Ajuster les couleurs pour correspondre aux données
+                    backgroundColor: backgroundColors.slice(0, data.length),
                 }],
             },
             options: {
@@ -354,16 +429,16 @@ export class AnalyticDashboard extends Component {
                     const activePoints = this.chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
                     if (activePoints.length) {
                         const firstPoint = activePoints[0];
-                        const projetId = ids[firstPoint.index]; // Utiliser l'ID du projet
-                        this.navigateToProjet(projetId, labels[firstPoint.index]); // Passer aussi le code du projet
+                        const projetId = ids[firstPoint.index];
+                        this.navigateToProjet(projetId, labels[firstPoint.index]);
                     }
                 },
                 plugins: {
                     tooltip: {
                         callbacks: {
                             label: function (context) {
-                                const projetIndex = context.dataIndex; // Récupérer l'index du projet
-                                return `Code Projet: ${labels[projetIndex]}, Résultat Chantier: ${context.raw.toLocaleString()} CFA`;
+                                const projetIndex = context.dataIndex;
+                                return `Code Projet: ${labels[projetIndex]}, Valeur: ${context.raw.toLocaleString()} CFA`;
                             },
                         },
                     },
@@ -374,6 +449,7 @@ export class AnalyticDashboard extends Component {
             },
         });
     }
+
 
     // Méthode pour naviguer vers un projet spécifique
     navigateToProjet(projetId, projetCode) {

@@ -76,10 +76,10 @@ h3 {
   text-align: center;
 }
 
- .table-responsive-analytic {
-   height: 350px;
-   overflow-y: auto;
- }
+.table-responsive-analytic {
+  height: 350px;
+  overflow-y: auto;
+}
 
 /* Barre de progression */
 .progress-wrapper {
@@ -120,4 +120,45 @@ h3 {
 .col-lg-8,
 .col-lg-4 {
   margin-bottom: 20px;
+}
+
+
+.custom-select-container {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.select-group {
+  display: flex;
+  gap: 10px;
+  /* Espace entre les deux sélecteurs */
+  align-items: center;
+  width: 100%;
+}
+
+.custom-select,
+.custom-dropdown {
+  flex: 1;
+  /* Égalise la largeur des deux selects */
+  padding: 8px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Ajoute un effet au survol */
+.custom-select:hover,
+.custom-dropdown:hover {
+  border-color: #007bff;
+}
+
+/* Responsive : en mode mobile, les selects passent en colonne */
+@media (max-width: 768px) {
+  .select-group {
+    flex-direction: column;
+    gap: 5px;
+  }
 }

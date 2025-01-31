@@ -254,7 +254,11 @@ class AnalyticDashboard(models.Model):
                 'pourcentage_avancement': projet.pourcentage_avancement,
                 'resultat_chantier_cumule': projet.resultat_chantier_cumule,
                 'ca_final': projet.ca_final,
-                'date': projet.date,  
+                'date': projet.date,
+                'plan_id': projet.plan_id.id, 
+                'factures_cumulees': projet.factures_cumulees,
+                'depenses_cumulees': projet.depenses_cumulees,  
+                'activite_cumulee': projet.activite_cumulee,  
             })
         
         return projets_data
@@ -339,7 +343,11 @@ class AnalyticDashboard(models.Model):
                 'pourcentage_avancement': projet['pourcentage_avancement'],
                 'resultat_chantier_cumule': projet['resultat_chantier_cumule'],
                 'ca_final': projet['ca_final'],
-                'date': projet['date'], 
+                'date': projet['date'],
+                'plan_id': projet['plan_id'],
+                'factures_cumulees': projet['factures_cumulees'], 
+                'depenses_cumulees': projet['depenses_cumulees'],
+                'activite_cumulee' : projet['activite_cumulee'],
             }
             projets_donnees.append(projet_donnees)  
         

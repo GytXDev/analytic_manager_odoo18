@@ -137,10 +137,10 @@ class AnalyticDashboard(models.Model):
                 'resultat_chantier_cumule': projet['resultat_chantier_cumule'],
                 'ca_final': projet['ca_final'],
                 'date': projet['date'],
+                'plan_id': projet[ 'plan_id'],
                 'factures_cumulees': projet['factures_cumulees'], 
                 'depenses_cumulees': projet['depenses_cumulees'],
                 'activite_cumulee' : projet['activite_cumulee'],
-                
             }
             projets_donnees.append(projet_donnees)  
         
