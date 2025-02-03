@@ -26,7 +26,6 @@ export class AnalyticDashboard extends Component {
         this.onClickUpdateDashboard = async () => {
             try {
                 const result = await rpc('/dashboard/update_dashboard', {});
-                console.log(result.message);
             } catch (error) {
                 console.error("Erreur lors de l'appel RPC :", error);
             }
@@ -229,7 +228,6 @@ export class AnalyticDashboard extends Component {
     async loadPlans() {
         try {
             const response = await rpc('/dashboard/liste_plans', {});  // Appel API
-            console.log("Réponse API reçue :", response);
 
             // Vérifier si les données sont présentes
             if (!response || response.status !== "success" || !response.data || !response.data.plans) {
@@ -262,8 +260,6 @@ export class AnalyticDashboard extends Component {
                 option.textContent = plan.name;
                 planSelect.appendChild(option);
             });
-
-            console.log("Plans chargés avec succès :", plans);
 
             // Attacher l'événement de changement sur le select pour afficher le nom et l'ID du plan choisi
             if (planSelect) {
@@ -306,18 +302,12 @@ export class AnalyticDashboard extends Component {
                     return true; // Pas de filtre
                 });
 
-                // Afficher les plan_id des projets dans la console
-                filteredProjets.forEach(projet => {
-                    console.log(projet.plan_id); // Afficher le plan_id pour chaque projet
-                });
-
                 this.state.projetsEnCours = filteredProjets.filter(projet => projet.pourcentage_avancement < 1);
                 this.state.projetsTermines = filteredProjets.filter(projet => projet.pourcentage_avancement >= 1);
 
                 // Si aucun plan n'est sélectionné (Tous les plans), ne pas filtrer
                 if (selectedPlan) {
                     filteredProjets = filteredProjets.filter(projet => projet.plan_id === selectedPlan);
-                    console.log("Filtrage par plan ID : ", selectedPlan);
                 } else {
                     console.log("Affichage de tous les projets sans filtrage par plan.");
                 }

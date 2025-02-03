@@ -38,11 +38,18 @@ class AnalyticDashboard(models.Model):
     marche_initial = fields.Float("Marché Initial")
     ts = fields.Float("Travaux Supplémentaires")
     factures_cumulees = fields.Float("Factures Cumulées", compute='_compute_factures_cumulees')
-    od_facture = fields.Float("OD Facture")
     non_facture = fields.Float("Non Facturé")
     trop_facture = fields.Float("Trop Facturé")
     depenses_cumulees = fields.Float(string="Dépenses Cumulées", compute='_compute_depenses_cumulees', store=False)
     debours_previsionnels = fields.Float("Débours Prévisionnels")
+  
+    # Champs supplémentaires à renseigner 
+    od_facture = fields.Float("Opérations Diverses Facturées")
+    oda_d = fields.Float("Ordres Divers d'Achats Décaissés")
+    ffnp = fields.Float("Factures Fournisseurs Non Parvenues")
+    stocks = fields.Float("Stocks")
+    provisions = fields.Float("Provisions")
+    
 
     ca_final = fields.Float(
         string="CA Final (FCFA)", 
@@ -98,7 +105,7 @@ class AnalyticDashboard(models.Model):
                 created_count += 1
 
         if created_count > 0:
-            return f"{created_count} tableau(x) de bord créé(s)"
+            return f"{created_count} Code projets créé(s)"
         else:
             return "Le tableau de bord est déjà à jour."
 
@@ -124,7 +131,7 @@ class AnalyticDashboard(models.Model):
         if 'name' in vals:
             existing_dashboard = self.search([('name', '=', vals['name'])])
             if existing_dashboard:
-                raise ValidationError(_('Un tableau analytique existe déjà pour ce projet !'))
+                raise ValidationError(_('Une analyse analytique existe déjà pour ce projet !'))
         return super(AnalyticDashboard, self).create(vals)
 
 
@@ -157,17 +164,24 @@ class AnalyticDashboard(models.Model):
             else:
                 record.factures_cumulees = 0.0
 
-     # Calcule les dépenses cumulées
-    @api.depends('factures_cumulees', 'od_facture')
+    # Calcule les dépenses cumulées
+    @api.depends('factures_cumulees', 'oda_d', 'ffnp', 'stocks', 'provisions')
     def _compute_depenses_cumulees(self):
         """
-        Dépenses cumulées = Factures Cumulées (fournisseurs) + OD Facture.
+        Dépenses cumulées = Factures Cumulées (fournisseurs) + ODA D. + Factures Fournisseurs Non Parvenues 
+        + Stocks + Provisions
         """
         for record in self:
-            record.depenses_cumulees = round(record.factures_cumulees + (record.od_facture or 0), 2)
+            record.depenses_cumulees = round(
+                (record.factures_cumulees or 0) + 
+                (record.oda_d or 0) + 
+                (record.ffnp or 0) + 
+                (record.stocks or 0) + 
+                (record.provisions or 0), 2
+            )
 
-    # Calcule l'activité cumulées
-    @api.depends('name')
+    # Calcule l'activité cumulée
+    @api.depends('name', 'od_facture', 'non_facture', 'trop_facture')
     def _compute_activite_cumulee(self):
         """
         Calcule le total hors taxes (`amount_untaxed_in_currency_signed`) des factures clients
@@ -183,9 +197,13 @@ class AnalyticDashboard(models.Model):
                 ]).mapped('move_id')
 
                 # Calcul du montant hors taxe cumulé
-                record.activite_cumulee = sum(move.amount_untaxed_in_currency_signed for move in move_ids)
+                record.activite_cumulee = sum(move.amount_untaxed_in_currency_signed for move in move_ids) + \
+                                        (record.od_facture or 0) + \
+                                        (record.non_facture or 0) + \
+                                        (record.trop_facture or 0)
             else:
                 record.activite_cumulee = 0.0
+
 
 
 

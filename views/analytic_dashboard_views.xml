@@ -49,7 +49,27 @@
                                 </group>
                             </page>
 
-                            <!-- Page 2 : Champs calculés -->
+                            <!-- Page 2 : Champs à supplémentaires -->
+                            <page string="Champs supplémentaires">
+                                <group>
+                                    <table class="oe_form_table">
+                                        <tr>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="oda_d" string="Ordres Divers d'Achats Décaissés"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="ffnp" string="Factures Fournisseurs Non Parvenues"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="provisions" string="Provisions"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="stocks" string="Stocks"/></td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="oda_d"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="ffnp"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="provisions"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;" ><field name="stocks"/></td>
+                                        </tr>
+                                    </table>
+                                </group>
+                            </page>
+
+                            <!-- Page 3 : Champs calculés -->
                             <page string="Champs calculés">
                                 <group>
                                     <table class="oe_form_table">
