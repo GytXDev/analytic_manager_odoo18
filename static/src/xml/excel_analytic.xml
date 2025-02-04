@@ -7,8 +7,10 @@
                 </button>
             </div>
 
-            <h4>Exploitation</h4>
-
+            <t t-foreach="plans" t-as="plan" t-key="plan.id">
+                <h4>Exploitation Plan ID: <t t-esc="plan.id"/>
+                <t t-esc="plan.name"/>
+            </h4>
             <table>
                 <thead>
                     <tr>
@@ -34,27 +36,67 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td class="highlight"></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td class="lowlight"></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                    </tr>
+                    <t t-foreach="plan.projets" t-as="projet" t-key="projet.id">
+                        <tr>
+                            <td>
+                                <t t-esc="projet.code_projet"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.libelle"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.marche_initial"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.ts"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.ca_final"/>
+                            </td>
+                            <td class="highlight">
+                                <t t-esc="projet.factures_cumulees"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.od_facture"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.non_facture"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.trop_facture"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.activite_cumulee"/>
+                            </td>
+                            <td class="lowlight">
+                                <t t-esc="projet.pourcentage_avancement"/>%
+                            </td>
+                            <td>
+                                <t t-esc="projet.debours_comptable_cumule"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.oda_d"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.ffnp"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.stocks"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.provisions"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.total_debourses"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.depenses_cumulees"/>
+                            </td>
+                            <td>
+                                <t t-esc="projet.resultat_chantier_cumule"/>
+                            </td>
+                        </tr>
+                    </t>
                 </tbody>
                 <tfoot>
                     <tr class="total">
@@ -78,29 +120,29 @@
                         <td></td>
                     </tr>
                 </tfoot>
+                <div class="container">
+                    <table class="summary-table">
+                        <tbody>
+                            <tr>
+                                <td>Activité Cumulée</td>
+                                <td>amount</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>Activité $annee</td>
+                                <td>amount</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td class="plan">PLAN</td>
+                                <td class="plan">amount</td>
+                                <td class="plan">%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </table>
-
-            <div class="container">
-                <table class="summary-table">
-                    <tbody>
-                        <tr>
-                            <td>Activité Cumulée</td>
-                            <td>amount</td>
-                            <td></td>
-                        </tr>
-                        <tr>
-                            <td>Activité $annee</td>
-                            <td>amount</td>
-                            <td></td>
-                        </tr>
-                        <tr>
-                            <td class="plan">PLAN</td>
-                            <td class="plan">amount</td>
-                            <td class="plan">%</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </t>
+        </t>
+    </div>
+</t>
 </templates>

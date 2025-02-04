@@ -302,6 +302,12 @@ class AnalyticDashboard(models.Model):
                 'factures_cumulees': projet.factures_cumulees,
                 'depenses_cumulees': projet.depenses_cumulees,  
                 'activite_cumulee': projet.activite_cumulee,  
+                'non_facture': projet.non_facture,
+                'oda_d': projet.oda_d,
+                'ffnp': projet.ffnp,
+                'stocks': projet.stocks,
+                'provisions': projet.provisions,
+                'debours_previsionnels': projet.debours_previsionnels,
             })
         
         return projets_data
@@ -391,6 +397,12 @@ class AnalyticDashboard(models.Model):
                 'factures_cumulees': projet['factures_cumulees'], 
                 'depenses_cumulees': projet['depenses_cumulees'],
                 'activite_cumulee' : projet['activite_cumulee'],
+                'non_facture' : projet['non_facture'],
+                'oda_d': projet['oda_d'],
+                'ffnp': projet['ffnp'],
+                'stocks': projet['stocks'],
+                'provisions': projet['provisions'],
+                'debours_previsionnels': projet['debours_previsionnels'],
             }
             projets_donnees.append(projet_donnees)  
         

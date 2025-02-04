@@ -507,7 +507,6 @@ export class AnalyticDashboard extends Component {
         });
     }
 
-
     // Méthode pour naviguer vers un projet spécifique
     navigateToProjet(projetId, projetCode) {
         this.action.doAction({

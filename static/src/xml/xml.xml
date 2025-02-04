@@ -1,0 +1,88 @@
+<templates xml:space="preserve">
+    <t t-name="owl.ExcelAnalytic" owl="1">
+        <div class="analytic-manager">
+            <div class="export-container">
+                <button class="export-btn" onclick="exportToExcel()">
+                    <i class="fas fa-file-export"></i>Exporter vers Excel
+                </button>
+            </div>
+
+            <t t-foreach="plans" t-as="plan">
+                <h4><t t-esc="plan.name"/></h4>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Code Projet</th>
+                            <th>Libellé</th>
+                            <th>Marché Initial</th>
+                            <th>TS</th>
+                            <th>CA Final</th>
+                            <th>Fact Comptable Cumulées</th>
+                            <th>OD Facture</th>
+                            <th>Non Facturé</th>
+                            <th>Trop Facturé</th>
+                            <th>Activité Cumulée</th>
+                            <th>%avt</th>
+                            <th>Débours Comptable Cumulé</th>
+                            <th>ODA D</th>
+                            <th>FFNP</th>
+                            <th>Stocks</th>
+                            <th>Provisions</th>
+                            <th>Total Déboursés</th>
+                            <th>Dépenses Cumulées</th>
+                            <th>Resultat Chantier</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="plan.projets" t-as="projet">
+                            <tr>
+                                <td><t t-esc="projet.code_projet"/></td>
+                                <td><t t-esc="projet.libelle"/></td>
+                                <td><t t-esc="projet.marche_initial"/></td>
+                                <td><t t-esc="projet.ts"/></td>
+                                <td><t t-esc="projet.ca_final"/></td>
+                                <td class="highlight"><t t-esc="projet.factures_cumulees"/></td>
+                                <td><t t-esc="projet.od_facture"/></td>
+                                <td><t t-esc="projet.non_facture"/></td>
+                                <td><t t-esc="projet.trop_facture"/></td>
+                                <td><t t-esc="projet.activite_cumulee"/></td>
+                                <td class="lowlight"><t t-esc="projet.pourcentage_avancement"/>%</td>
+                                <td><t t-esc="projet.debours_comptable_cumule"/></td>
+                                <td><t t-esc="projet.oda_d"/></td>
+                                <td><t t-esc="projet.ffnp"/></td>
+                                <td><t t-esc="projet.stocks"/></td>
+                                <td><t t-esc="projet.provisions"/></td>
+                                <td><t t-esc="projet.total_debourses"/></td>
+                                <td><t t-esc="projet.depenses_cumulees"/></td>
+                                <td><t t-esc="projet.resultat_chantier_cumule"/></td>
+                            </tr>
+                        </t>
+                    </tbody>
+                    <tfoot>
+                        <tr class="total">
+                            <td colspan="2">RESULTAT OGOOUE EXPLOITATION</td>
+                            <td><t t-esc="plan.total_ca_final"/></td>
+                            <td></td>
+                            <td></td>
+                            <td class="highlight"><t t-esc="plan.total_factures_cumulees"/></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td class="lowlight"><t t-esc="plan.moyenne_avancement"/>%</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </t>
+        </div>
+    </t>
+</templates>
