@@ -1,0 +1,82 @@
+.analytic-manager {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+
+.analytic-manager table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.analytic-manager th,
+.analytic-manager td {
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+.analytic-manager th {
+    background-color: #138d75;
+    color: white;
+}
+
+.analytic-manager .highlight {
+    background-color: yellow;
+}
+
+.analytic-manager .lowlight {
+    background-color: #3498db;
+}
+
+.analytic-manager .total {
+    font-weight: bold;
+    background-color: #f9f9f9;
+}
+
+.analytic-manager .container {
+    display: flex;
+    justify-content: flex-end;
+    padding: 20px;
+    margin: 20px;
+    width: 80%;
+}
+
+.analytic-manager .summary-table {
+    width: 40%;
+    font-weight: bold;
+    margin: 0;
+}
+
+.analytic-manager .summary-table th {
+    background-color: #ddd;
+}
+
+.analytic-manager .plan {
+    color: red;
+}
+
+.analytic-manager .export-container {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.analytic-manager .export-btn {
+    background-color: #138d75;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 20px;
+    display: inline-block;
+}
+
+.analytic-manager .export-btn i {
+    margin-right: 5px;
+}
+
+.analytic-manager .hidden {
+    display: none;
+}

@@ -61,11 +61,21 @@ class AnalyticDashboard(models.Model):
         compute='_compute_activite_cumulee', 
         store=False
     )
+
+    # Champ pour le pourcentage d'avancement (décimal)
     pourcentage_avancement = fields.Float(
-        string="Avancement (%)", 
-        compute='_compute_pourcentage_avancement', 
-        store=False
+        string="Avancement (%)",
+        compute='_compute_pourcentage_avancement',
+        store=True  # Stockage dans la base de données
     )
+
+    # Champ pour stocker le pourcentage sous forme d'entier
+    stockage_pourcentage = fields.Integer(
+        string="Stockage Pourcentage",
+        compute='_compute_pourcentage_avancement',  
+        store=True
+    )
+
     resultat_chantier_cumule = fields.Float(
         string="Résultat Chantier Cumulé (FCFA)", 
         compute='_compute_resultat_chantier_cumule', 
@@ -144,26 +154,31 @@ class AnalyticDashboard(models.Model):
     @api.depends('name')
     def _compute_factures_cumulees(self):
         """
-        Calcule le total hors taxes des factures fournisseurs associées au compte analytique sélectionné.
+        Calcule le total hors taxes des factures fournisseurs,
+        en soustrayant les montants des avoirs (factures d'avoir).
         """
         for record in self:
             if record.name:
-                # Recherche des factures fournisseurs liées à ce compte analytique
-                factures = self.env['account.move'].read_group(
-                    domain=[
-                        ('line_ids.analytic_distribution', 'in', [record.name.id]),  # Lignes analytiques liées
-                        ('move_type', '=', 'in_invoice'),  # Factures fournisseurs
-                        ('state', '=', 'posted')  # Factures validées
-                    ],
-                    fields=['amount_untaxed_in_currency_signed:sum'],
-                    groupby=[]
-                )
+                # Recherche des factures fournisseurs et des avoirs liés au compte analytique
+                factures = self.env['account.move.line'].search([
+                    ('analytic_distribution', 'in', [record.name.id]),
+                    ('move_id.move_type', 'in', ['in_invoice', 'in_refund']),
+                    ('move_id.state', '=', 'posted')
+                ])
 
-                # Récupération de la somme des montants hors taxes
-                record.factures_cumulees = factures[0]['amount_untaxed_in_currency_signed'] if factures else 0.0
+                # Élimination des doublons en regroupant par facture
+                move_ids = factures.mapped('move_id')
+
+                # Calcul des totaux pour les factures et les avoirs
+                total_factures = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'in_invoice')
+                total_avoirs = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'in_refund')
+
+                # Calcul final : Factures - Avoirs
+                record.factures_cumulees = total_factures + total_avoirs
             else:
                 record.factures_cumulees = 0.0
 
+                
     # Calcule les dépenses cumulées
     @api.depends('factures_cumulees', 'oda_d', 'ffnp', 'stocks', 'provisions')
     def _compute_depenses_cumulees(self):
@@ -184,26 +199,32 @@ class AnalyticDashboard(models.Model):
     @api.depends('name', 'od_facture', 'non_facture', 'trop_facture')
     def _compute_activite_cumulee(self):
         """
-        Calcule le total hors taxes (`amount_untaxed_in_currency_signed`) des factures clients
-        associées au compte analytique sélectionné.
+        Calcule le total hors taxes des factures clients,
+        en soustrayant les montants des factures d'avoir (out_refund).
         """
         for record in self:
             if record.name:
-                # Trouver toutes les factures clients liées au compte analytique
-                move_ids = self.env['account.move.line'].search([
+                # Recherche des factures et avoirs liés au compte analytique
+                move_lines = self.env['account.move.line'].search([
                     ('analytic_distribution', 'in', [record.name.id]),
-                    ('move_id.move_type', '=', 'out_invoice'),
+                    ('move_id.move_type', 'in', ['out_invoice', 'out_refund']),
                     ('move_id.state', '=', 'posted')
-                ]).mapped('move_id')
+                ])
 
-                # Calcul du montant hors taxe cumulé
-                record.activite_cumulee = sum(move.amount_untaxed_in_currency_signed for move in move_ids) + \
+                # Éliminer les doublons de factures
+                move_ids = move_lines.mapped('move_id')
+
+                # Calcul des factures et des avoirs
+                total_factures = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'out_invoice')
+                total_avoirs = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'out_refund')
+
+                # Calcul final : Factures - Avoirs + ajustements
+                record.activite_cumulee = (total_factures + total_avoirs) + \
                                         (record.od_facture or 0) + \
                                         (record.non_facture or 0) + \
                                         (record.trop_facture or 0)
             else:
                 record.activite_cumulee = 0.0
-
 
 
 
@@ -222,9 +243,13 @@ class AnalyticDashboard(models.Model):
     def _compute_pourcentage_avancement(self):
         for record in self:
             if record.ca_final:
-                record.pourcentage_avancement = round((record.activite_cumulee or 0) / record.ca_final, 2)
+                # Calcul du pourcentage avec 2 décimales
+                record.pourcentage_avancement = round((record.activite_cumulee or 0) / record.ca_final * 100, 2)
+                # Stockage en entier
+                record.stockage_pourcentage = int(record.pourcentage_avancement)
             else:
-                record.pourcentage_avancement = 0
+                record.pourcentage_avancement = 0.0
+                record.stockage_pourcentage = 0
 
 
      # Calcule l'écart d'activité par rapport au mois précédent

@@ -30,6 +30,19 @@ class AnalyticDashboard(models.Model):
         default=fields.Date.context_today,
     )
 
+    date_debut = fields.Date(
+        string="Date de Début",
+        required=True,
+        help="Date de début de la période d'analyse."
+    )
+
+    date_fin = fields.Date(
+        string="Date de Fin",
+        required=True,
+        help="Date de fin de la période d'analyse."
+    )
+
+
     plan_id = fields.Many2one(
         comodel_name='account.analytic.plan',
         string="Plan Analytique",
@@ -38,11 +51,18 @@ class AnalyticDashboard(models.Model):
     marche_initial = fields.Float("Marché Initial")
     ts = fields.Float("Travaux Supplémentaires")
     factures_cumulees = fields.Float("Factures Cumulées", compute='_compute_factures_cumulees')
-    od_facture = fields.Float("OD Facture")
     non_facture = fields.Float("Non Facturé")
     trop_facture = fields.Float("Trop Facturé")
     depenses_cumulees = fields.Float(string="Dépenses Cumulées", compute='_compute_depenses_cumulees', store=False)
     debours_previsionnels = fields.Float("Débours Prévisionnels")
+  
+    # Champs supplémentaires à renseigner 
+    od_facture = fields.Float("Opérations Diverses Facturées")
+    oda_d = fields.Float("Ordres Divers d'Achats Décaissés")
+    ffnp = fields.Float("Factures Fournisseurs Non Parvenues")
+    stocks = fields.Float("Stocks")
+    provisions = fields.Float("Provisions")
+    
 
     ca_final = fields.Float(
         string="CA Final (FCFA)", 
@@ -54,11 +74,21 @@ class AnalyticDashboard(models.Model):
         compute='_compute_activite_cumulee', 
         store=False
     )
+
+    # Champ pour le pourcentage d'avancement (décimal)
     pourcentage_avancement = fields.Float(
-        string="Avancement (%)", 
-        compute='_compute_pourcentage_avancement', 
-        store=False
+        string="Avancement (%)",
+        compute='_compute_pourcentage_avancement',
+        store=True  # Stockage dans la base de données
     )
+
+    # Champ pour stocker le pourcentage sous forme d'entier
+    stockage_pourcentage = fields.Integer(
+        string="Stockage Pourcentage",
+        compute='_compute_pourcentage_avancement',  
+        store=True
+    )
+
     resultat_chantier_cumule = fields.Float(
         string="Résultat Chantier Cumulé (FCFA)", 
         compute='_compute_resultat_chantier_cumule', 
@@ -78,6 +108,31 @@ class AnalyticDashboard(models.Model):
         store=False
     )
 
+
+    def create_dashboard_for_all_analytic_accounts(self):
+        """
+        Cette méthode crée automatiquement un tableau de bord pour chaque compte analytique existant dans le système.
+        """
+        analytic_accounts = self.env['account.analytic.account'].search([])  # Recherche de tous les comptes analytiques
+        created_count = 0
+        for account in analytic_accounts:
+            # Vérifie si un tableau analytique existe déjà pour ce compte analytique
+            existing_dashboard = self.search([('name', '=', account.id)])
+            if not existing_dashboard:
+                # Crée un enregistrement dans 'analytic.dashboard' pour chaque compte analytique
+                self.create({
+                    'name': account.id,
+                    'libelle': account.code,
+                    'plan_id': account.plan_id.id,
+                })
+                created_count += 1
+
+        if created_count > 0:
+            return f"{created_count} Code projets créé(s)"
+        else:
+            return "Le tableau de bord est déjà à jour."
+
+ 
     # Récupère la réference et plan analytique asssocié au compte analytique / code projet
     @api.onchange('name')
     def _onchange_name(self):
@@ -94,6 +149,122 @@ class AnalyticDashboard(models.Model):
                 record.plan_id = False
 
 
+    @api.model
+    def create(self, vals):
+        if 'name' in vals:
+            existing_dashboard = self.search([('name', '=', vals['name'])])
+            if existing_dashboard:
+                raise ValidationError(_('Une analyse analytique existe déjà pour ce projet !'))
+        return super(AnalyticDashboard, self).create(vals)
+
+
+    @api.depends('marche_initial', 'ts')
+    def _compute_ca_final(self):
+        for record in self:
+            record.ca_final = round((record.marche_initial or 0) + (record.ts or 0), 2)
+
+    # Calcule le total des factures fournisseurs
+    @api.depends('name')
+    def _compute_factures_cumulees(self):
+        """
+        Calcule le total hors taxes des factures fournisseurs,
+        en soustrayant les montants des avoirs (factures d'avoir).
+        """
+        for record in self:
+            if record.name:
+                # Recherche des factures fournisseurs et des avoirs liés au compte analytique
+                factures = self.env['account.move.line'].search([
+                    ('analytic_distribution', 'in', [record.name.id]),
+                    ('move_id.move_type', 'in', ['in_invoice', 'in_refund']),
+                    ('move_id.state', '=', 'posted')
+                ])
+
+                # Élimination des doublons en regroupant par facture
+                move_ids = factures.mapped('move_id')
+
+                # Calcul des totaux pour les factures et les avoirs
+                total_factures = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'in_invoice')
+                total_avoirs = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'in_refund')
+
+                # Calcul final : Factures - Avoirs
+                record.factures_cumulees = total_factures + total_avoirs
+            else:
+                record.factures_cumulees = 0.0
+
+                
+    # Calcule les dépenses cumulées
+    @api.depends('factures_cumulees', 'oda_d', 'ffnp', 'stocks', 'provisions')
+    def _compute_depenses_cumulees(self):
+        """
+        Dépenses cumulées = Factures Cumulées (fournisseurs) + ODA D. + Factures Fournisseurs Non Parvenues 
+        + Stocks + Provisions
+        """
+        for record in self:
+            record.depenses_cumulees = round(
+                (record.factures_cumulees or 0) + 
+                (record.oda_d or 0) + 
+                (record.ffnp or 0) + 
+                (record.stocks or 0) + 
+                (record.provisions or 0), 2
+            )
+
+    # Calcule l'activité cumulée
+    @api.depends('name', 'od_facture', 'non_facture', 'trop_facture')
+    def _compute_activite_cumulee(self):
+        """
+        Calcule le total hors taxes des factures clients,
+        en soustrayant les montants des factures d'avoir (out_refund).
+        """
+        for record in self:
+            if record.name:
+                # Recherche des factures et avoirs liés au compte analytique
+                move_lines = self.env['account.move.line'].search([
+                    ('analytic_distribution', 'in', [record.name.id]),
+                    ('move_id.move_type', 'in', ['out_invoice', 'out_refund']),
+                    ('move_id.state', '=', 'posted')
+                ])
+
+                # Éliminer les doublons de factures
+                move_ids = move_lines.mapped('move_id')
+
+                # Calcul des factures et des avoirs
+                total_factures = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'out_invoice')
+                total_avoirs = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'out_refund')
+
+                # Calcul final : Factures - Avoirs + ajustements
+                record.activite_cumulee = (total_factures + total_avoirs) + \
+                                        (record.od_facture or 0) + \
+                                        (record.non_facture or 0) + \
+                                        (record.trop_facture or 0)
+            else:
+                record.activite_cumulee = 0.0
+
+
+
+    @api.depends('activite_cumulee', 'depenses_cumulees')
+    def _compute_resultat_chantier_cumule(self):
+        for record in self:
+            # Vérifie si l'une des valeurs est nulle
+            if record.activite_cumulee is None or record.depenses_cumulees is None:
+                record.resultat_chantier_cumule = 0.0  # Ou une autre valeur par défaut si nécessaire
+            else:
+                # Calcule le résultat chantier cumulé uniquement si les deux valeurs sont non nulles
+                record.resultat_chantier_cumule = round(record.activite_cumulee + record.depenses_cumulees, 2)
+
+
+    @api.depends('activite_cumulee', 'ca_final')
+    def _compute_pourcentage_avancement(self):
+        for record in self:
+            if record.ca_final:
+                # Calcul du pourcentage avec 2 décimales
+                record.pourcentage_avancement = round((record.activite_cumulee or 0) / record.ca_final * 100, 2)
+                # Stockage en entier
+                record.stockage_pourcentage = int(record.pourcentage_avancement)
+            else:
+                record.pourcentage_avancement = 0.0
+                record.stockage_pourcentage = 0
+
+    
     # Ajout des méthodes supplémentaires pour l'analyse des projets
     def get_all_projets(self):
         """
@@ -120,6 +291,69 @@ class AnalyticDashboard(models.Model):
         return projets_data
 
 
+    @api.model
+    def get_all_plans(self):
+        """
+        Retourne tous les plans analytiques disponibles.
+        """
+        plans = self.env['account.analytic.plan'].search([])
+        plans_data = []
+
+        print("Nombre de plans trouvés :", len(plans))
+
+        for plan in plans:
+            plans_data.append({
+                'id': plan.id,
+                'name': plan.name,
+            })
+            print("Plan ID:", plan.id, ", Nom:", plan.name)
+
+        # Retourne les données dans un format structuré
+        return {
+            'count': len(plans),
+            'plans': plans_data,
+        }
+
+
+    @api.model
+    def get_resultat_chantier_total(self, start_date=None, end_date=None):
+        # Logique pour calculer le résultat chantier total selon les dates
+        domain = []
+        if start_date:
+            domain.append(('date', '>=', start_date))
+        if end_date:
+            domain.append(('date', '<=', end_date))
+
+        total = sum(self.search(domain).mapped('resultat_chantier_cumule'))
+        return {'resultat_chantier_total': total}
+    
+
+    @api.model
+    def get_progression_moyenne(self, start_date=None, end_date=None):
+        # Logique pour calculer la progression moyenne selon les dates
+        domain = []
+        if start_date:
+            domain.append(('date', '>=', start_date))
+        if end_date:
+            domain.append(('date', '<=', end_date))
+
+        progression = self.search(domain).mapped('pourcentage_avancement')
+        if progression:
+            return {'progression_moyenne': sum(progression) / len(progression)}
+        return {'progression_moyenne': 0}
+    
+    def get_statistiques_projets(self):
+        """
+        Retourne des statistiques générales sur les projets sans distinction entre projets en cours et terminés.
+        """
+        projets = self.get_all_projets()  
+        total_projets = len(projets) 
+        return {
+            'total_projets': total_projets,
+            'resultat_chantier_total': self.get_resultat_chantier_total().get('resultat_chantier_total', 0),
+            'progression_moyenne': self.get_progression_moyenne().get('progression_moyenne', 0),
+        }
+    
     def get_donnees_projets_independantes(self):
         """
         Retourne une liste des données indépendantes pour chaque projet.
@@ -137,7 +371,7 @@ class AnalyticDashboard(models.Model):
                 'resultat_chantier_cumule': projet['resultat_chantier_cumule'],
                 'ca_final': projet['ca_final'],
                 'date': projet['date'],
-                'plan_id': projet[ 'plan_id'],
+                'plan_id': projet['plan_id'],
                 'factures_cumulees': projet['factures_cumulees'], 
                 'depenses_cumulees': projet['depenses_cumulees'],
                 'activite_cumulee' : projet['activite_cumulee'],

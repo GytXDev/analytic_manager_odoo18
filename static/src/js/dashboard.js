@@ -140,53 +140,103 @@ export class AnalyticDashboard extends Component {
         // Gestion du sélecteur de période
         const periodSelector = document.getElementById('period-selector');
         const dateRangeDiv = document.getElementById('date-range');
+        const periodLabel = document.getElementById('period-label');
+        const applyButton = document.querySelector('.btn-submit');
 
+        // 🗓️ Charger par défaut les résultats du mois en cours
+        const today = new Date();
+        const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+        const defaultDateFilter = {
+            start: thisMonthStart.toISOString().split('T')[0],
+            end: thisMonthEnd.toISOString().split('T')[0]
+        };
+
+        periodSelector.value = 'this-month'; // Sélection par défaut
+        periodLabel.textContent = "du mois en cours";
+
+        // Chargement initial des données
+        this.loadProjets(defaultDateFilter);
+        this.loadResultatChantierTotal(defaultDateFilter);
+        this.loadProgressionMoyenne(defaultDateFilter);
+
+        // 🎯 Gestion du sélecteur de période
         periodSelector.addEventListener('change', () => {
             if (periodSelector.value === 'custom') {
                 dateRangeDiv.classList.remove('hidden');
+                periodLabel.textContent = "pour la période personnalisée";
             } else {
                 dateRangeDiv.classList.add('hidden');
-                // Chargez les projets pour le mois sélectionné
-                this.loadProjets(); // Vous pouvez aussi passer le filtre ici
+
+                switch (periodSelector.value) {
+                    case 'this-month':
+                        periodLabel.textContent = "du mois en cours";
+                        break;
+                    case 'last-month':
+                        periodLabel.textContent = "du mois précédent";
+                        break;
+                    case 'this-year':
+                        periodLabel.textContent = "de cette année";
+                        break;
+                }
+
+                // Rechargement des données pour la période sélectionnée
+                this.applyDateFilter();
             }
         });
 
-        // Gestion du bouton Appliquer
-        const applyButton = document.querySelector('.btn-submit');
-        applyButton.addEventListener('click', async () => {
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
-
-            let dateFilter = {};
-            if (periodSelector.value === 'last-month') {
-                const today = new Date();
-                const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-                const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
-                dateFilter = {
-                    start: lastMonthStart.toISOString().split('T')[0],
-                    end: lastMonthEnd.toISOString().split('T')[0]
-                };
-            } else if (periodSelector.value === 'this-month') {
-                const today = new Date();
-                const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-                const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                dateFilter = {
-                    start: thisMonthStart.toISOString().split('T')[0],
-                    end: thisMonthEnd.toISOString().split('T')[0]
-                };
-            } else if (periodSelector.value === 'custom' && startDate && endDate) {
-                dateFilter = {
-                    start: startDate,
-                    end: endDate
-                };
-            }
-
-            // Appeler les méthodes de chargement
-            await this.loadProjets(dateFilter);
-            await this.loadResultatChantierTotal(dateFilter);
-            await this.loadProgressionMoyenne(dateFilter);
-        });
+        // 🗓️ Gestion du bouton Appliquer pour la période personnalisée
+        applyButton.addEventListener('click', () => this.applyDateFilter());
     }
+
+    // 🔄 Fonction pour appliquer le filtre en fonction de la période sélectionnée
+    applyDateFilter() {
+        const periodSelector = document.getElementById('period-selector');
+        const periodLabel = document.getElementById('period-label');
+        const startDate = document.getElementById('start-date')?.value;
+        const endDate = document.getElementById('end-date')?.value;
+        const today = new Date();
+        let dateFilter = {};
+
+        if (periodSelector.value === 'last-month') {
+            const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+            const lastMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+
+            dateFilter = {
+                start: new Date(year, lastMonth, 1).toISOString().split('T')[0],
+                end: new Date(year, lastMonth + 1, 0).toISOString().split('T')[0]
+            };
+            periodLabel.textContent = "du mois précédent";
+        }
+        else if (periodSelector.value === 'this-month') {
+            dateFilter = {
+                start: new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0],
+                end: new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0]
+            };
+            periodLabel.textContent = "du mois en cours";
+        }
+        else if (periodSelector.value === 'this-year') {
+            dateFilter = {
+                start: new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0],
+                end: new Date(today.getFullYear(), 11, 31).toISOString().split('T')[0]
+            };
+            periodLabel.textContent = "de cette année";
+        }
+        else if (periodSelector.value === 'custom' && startDate && endDate) {
+            dateFilter = {
+                start: startDate,
+                end: endDate
+            };
+            periodLabel.textContent = `du ${startDate} au ${endDate}`;
+        }
+
+        // 📊 Rechargement des données
+        this.loadProjets(dateFilter);
+        this.loadResultatChantierTotal(dateFilter);
+        this.loadProgressionMoyenne(dateFilter);
+    }
+
 
     async loadResultatChantierTotal(dateFilter = {}) {
         try {
