@@ -1,381 +1,352 @@
-# analytic_manager\models\analytic_dashboard.py
-from odoo import models, fields, api, _
-from odoo.exceptions import ValidationError
-from datetime import timedelta
+# -*- coding: utf-8 -*-
 
-class AnalyticDashboard(models.Model):
-    _name = 'analytic.dashboard'
-    _description = 'Tableau Analytique'
+from odoo import api, fields, models, _, Command
+from odoo.exceptions import UserError, ValidationError
+from odoo.tools import format_date, formatLang, frozendict, date_utils
+from odoo.tools.float_utils import float_round
 
-    name = fields.Many2one(
-        'account.analytic.account',
-        string="Code Projet",
-        required=True,
-        help="Sélectionnez le compte analytique associé au projet.",
-        domain=[('code', '!=', False)]  
-    )
-
-    _sql_constraints = [
-        ('unique_analytic_account', 'unique(name)', 'Un tableau analytique existe déjà pour ce projet !')
-    ]
-
-    libelle = fields.Char(
-        string="Libellé",
-    )
-
-    date = fields.Date(
-        'Date',
-        required=True,
-        index=True,
-        default=fields.Date.context_today,
-    )
-
-    date_debut = fields.Date(
-        string="Date de Début",
-        required=True,
-        help="Date de début de la période d'analyse."
-    )
-
-    date_fin = fields.Date(
-        string="Date de Fin",
-        required=True,
-        help="Date de fin de la période d'analyse."
-    )
+from dateutil.relativedelta import relativedelta
 
 
-    plan_id = fields.Many2one(
-        comodel_name='account.analytic.plan',
-        string="Plan Analytique",
-    )
+class AccountPaymentTerm(models.Model):
+    _name = "account.payment.term"
+    _description = "Payment Terms"
+    _order = "sequence, id"
+    _check_company_domain = models.check_company_domain_parent_of
 
-    marche_initial = fields.Float("Marché Initial")
-    ts = fields.Float("Travaux Supplémentaires")
-    factures_cumulees = fields.Float("Factures Cumulées", compute='_compute_factures_cumulees')
-    non_facture = fields.Float("Non Facturé")
-    trop_facture = fields.Float("Trop Facturé")
-    depenses_cumulees = fields.Float(string="Dépenses Cumulées", compute='_compute_depenses_cumulees', store=False)
-    debours_previsionnels = fields.Float("Débours Prévisionnels")
-  
-    # Champs supplémentaires à renseigner 
-    od_facture = fields.Float("Opérations Diverses Facturées")
-    oda_d = fields.Float("Ordres Divers d'Achats Décaissés")
-    ffnp = fields.Float("Factures Fournisseurs Non Parvenues")
-    stocks = fields.Float("Stocks")
-    provisions = fields.Float("Provisions")
-    
+    def _default_line_ids(self):
+        return [Command.create({'value': 'percent', 'value_amount': 100.0, 'nb_days': 0})]
 
-    ca_final = fields.Float(
-        string="CA Final (FCFA)", 
-        compute='_compute_ca_final', 
-        store=False
-    )
-    activite_cumulee = fields.Float(
-        string="Activité Cumulée (FCFA)", 
-        compute='_compute_activite_cumulee', 
-        store=False
-    )
+    def _default_example_date(self):
+        return self._context.get('example_date') or fields.Date.today()
 
-    # Champ pour le pourcentage d'avancement (décimal)
-    pourcentage_avancement = fields.Float(
-        string="Avancement (%)",
-        compute='_compute_pourcentage_avancement',
-        store=True  # Stockage dans la base de données
-    )
+    name = fields.Char(string='Payment Terms', translate=True, required=True)
+    active = fields.Boolean(default=True, help="If the active field is set to False, it will allow you to hide the payment terms without removing it.")
+    note = fields.Html(string='Description on the Invoice', translate=True)
+    line_ids = fields.One2many('account.payment.term.line', 'payment_id', string='Terms', copy=True, default=_default_line_ids)
+    company_id = fields.Many2one('res.company', string='Company')
+    fiscal_country_codes = fields.Char(compute='_compute_fiscal_country_codes')
+    sequence = fields.Integer(required=True, default=10)
+    currency_id = fields.Many2one('res.currency', compute="_compute_currency_id")
 
-    # Champ pour stocker le pourcentage sous forme d'entier
-    stockage_pourcentage = fields.Integer(
-        string="Stockage Pourcentage",
-        compute='_compute_pourcentage_avancement',  
-        store=True
-    )
+    display_on_invoice = fields.Boolean(string='Show installment dates', default=True)
+    example_amount = fields.Monetary(currency_field='currency_id', default=1000, store=False, readonly=True)
+    example_date = fields.Date(string='Date example', default=_default_example_date, store=False)
+    example_invalid = fields.Boolean(compute='_compute_example_invalid')
+    example_preview = fields.Html(compute='_compute_example_preview')
+    example_preview_discount = fields.Html(compute='_compute_example_preview')
 
-    resultat_chantier_cumule = fields.Float(
-        string="Résultat Chantier Cumulé (FCFA)", 
-        compute='_compute_resultat_chantier_cumule', 
-        store=False
-    )
+    discount_percentage = fields.Float(string='Discount %', help='Early Payment Discount granted for this payment term', default=2.0)
+    discount_days = fields.Integer(string='Discount Days', help='Number of days before the early payment proposition expires', default=10)
+    early_pay_discount_computation = fields.Selection([
+        ('included', 'On early payment'),
+        ('excluded', 'Never'),
+        ('mixed', 'Always (upon invoice)'),
+    ], string='Cash Discount Tax Reduction', readonly=False, store=True, compute='_compute_discount_computation')
+    early_discount = fields.Boolean(string='Early Discount')
 
-     # Ajout des champs d'écart temporel
-    ecart_activite = fields.Float(
-        string="Écart Activité (FCFA)", 
-        compute='_compute_ecart_activite', 
-        store=False
-    )
-
-    ecart_depenses = fields.Float(
-        string="Écart Dépenses (FCFA)", 
-        compute='_compute_ecart_depenses', 
-        store=False
-    )
-
-
-    def create_dashboard_for_all_analytic_accounts(self):
-        """
-        Cette méthode crée automatiquement un tableau de bord pour chaque compte analytique existant dans le système.
-        """
-        analytic_accounts = self.env['account.analytic.account'].search([])  # Recherche de tous les comptes analytiques
-        created_count = 0
-        for account in analytic_accounts:
-            # Vérifie si un tableau analytique existe déjà pour ce compte analytique
-            existing_dashboard = self.search([('name', '=', account.id)])
-            if not existing_dashboard:
-                # Crée un enregistrement dans 'analytic.dashboard' pour chaque compte analytique
-                self.create({
-                    'name': account.id,
-                    'libelle': account.code,
-                    'plan_id': account.plan_id.id,
-                })
-                created_count += 1
-
-        if created_count > 0:
-            return f"{created_count} Code projets créé(s)"
-        else:
-            return "Le tableau de bord est déjà à jour."
-
- 
-    # Récupère la réference et plan analytique asssocié au compte analytique / code projet
-    @api.onchange('name')
-    def _onchange_name(self):
-        """
-        Met à jour automatiquement les champs 'libelle' et 'plan_id' 
-        en fonction du compte analytique sélectionné.
-        """
+    @api.depends('company_id')
+    @api.depends_context('allowed_company_ids')
+    def _compute_fiscal_country_codes(self):
         for record in self:
-            if record.name:
-                record.libelle = record.name.code
-                record.plan_id = record.name.plan_id
-            else:
-                record.libelle = False
-                record.plan_id = False
+            allowed_companies = record.company_id or self.env.companies
+            record.fiscal_country_codes = ",".join(allowed_companies.mapped('account_fiscal_country_id.code'))
 
+    @api.depends_context('company')
+    @api.depends('company_id')
+    def _compute_currency_id(self):
+        for payment_term in self:
+            payment_term.currency_id = payment_term.company_id.currency_id or self.env.company.currency_id
+
+    def _get_amount_due_after_discount(self, total_amount, untaxed_amount):
+        self.ensure_one()
+        if self.early_discount:
+            percentage = self.discount_percentage / 100.0
+            if self.early_pay_discount_computation in ('excluded', 'mixed'):
+                discount_amount_currency = (total_amount - untaxed_amount) * percentage
+            else:
+                discount_amount_currency = total_amount * percentage
+            return self.currency_id.round(total_amount - discount_amount_currency)
+        return total_amount
+
+    @api.depends('company_id')
+    def _compute_discount_computation(self):
+        for pay_term in self:
+            country_code = pay_term.company_id.country_code or self.env.company.country_code
+            if country_code == 'BE':
+                pay_term.early_pay_discount_computation = 'mixed'
+            elif country_code == 'NL':
+                pay_term.early_pay_discount_computation = 'excluded'
+            else:
+                pay_term.early_pay_discount_computation = 'included'
+
+    @api.depends('line_ids')
+    def _compute_example_invalid(self):
+        for payment_term in self:
+            payment_term.example_invalid = not payment_term.line_ids
+
+    @api.depends('currency_id', 'example_amount', 'example_date', 'line_ids.value', 'line_ids.value_amount', 'line_ids.nb_days', 'early_discount', 'discount_percentage', 'discount_days')
+    def _compute_example_preview(self):
+        for record in self:
+            example_preview = ""
+            record.example_preview_discount = ""
+            currency = record.currency_id
+            if record.early_discount:
+                date = record._get_last_discount_date_formatted(record.example_date or fields.Date.context_today(record))
+                discount_amount = record._get_amount_due_after_discount(record.example_amount, 0.0)
+                record.example_preview_discount = _(
+                    "Early Payment Discount: <b>%(amount)s</b> if paid before <b>%(date)s</b>",
+                    amount=formatLang(self.env, discount_amount, currency_obj=currency),
+                    date=date,
+                )
+
+            if not record.example_invalid:
+                terms = record._compute_terms(
+                    date_ref=record.example_date or fields.Date.context_today(record),
+                    currency=currency,
+                    company=self.env.company,
+                    tax_amount=0,
+                    tax_amount_currency=0,
+                    untaxed_amount=record.example_amount,
+                    untaxed_amount_currency=record.example_amount,
+                    sign=1)
+                for i, info_by_dates in enumerate(record._get_amount_by_date(terms).values()):
+                    date = info_by_dates['date']
+                    amount = info_by_dates['amount']
+                    example_preview += "<div>"
+                    example_preview += _(
+                        "<b>%(count)s#</b> Installment of <b>%(amount)s</b> due on <b style='color: #704A66;'>%(date)s</b>",
+                        count=i+1,
+                        amount=formatLang(self.env, amount, currency_obj=currency),
+                        date=date,
+                    )
+                    example_preview += "</div>"
+
+            record.example_preview = example_preview
 
     @api.model
-    def create(self, vals):
-        if 'name' in vals:
-            existing_dashboard = self.search([('name', '=', vals['name'])])
-            if existing_dashboard:
-                raise ValidationError(_('Une analyse analytique existe déjà pour ce projet !'))
-        return super(AnalyticDashboard, self).create(vals)
-
-
-    @api.depends('marche_initial', 'ts')
-    def _compute_ca_final(self):
-        for record in self:
-            record.ca_final = round((record.marche_initial or 0) + (record.ts or 0), 2)
-
-    # Calcule le total des factures fournisseurs
-    @api.depends('name')
-    def _compute_factures_cumulees(self):
+    def _get_amount_by_date(self, terms):
         """
-        Calcule le total hors taxes des factures fournisseurs,
-        en soustrayant les montants des avoirs (factures d'avoir).
+        Returns a dictionary with the amount for each date of the payment term
+        (grouped by date, discounted percentage and discount last date,
+        sorted by date and ignoring null amounts).
         """
-        for record in self:
-            if record.name:
-                # Recherche des factures fournisseurs et des avoirs liés au compte analytique
-                factures = self.env['account.move.line'].search([
-                    ('analytic_distribution', 'in', [record.name.id]),
-                    ('move_id.move_type', 'in', ['in_invoice', 'in_refund']),
-                    ('move_id.state', '=', 'posted')
-                ])
-
-                # Élimination des doublons en regroupant par facture
-                move_ids = factures.mapped('move_id')
-
-                # Calcul des totaux pour les factures et les avoirs
-                total_factures = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'in_invoice')
-                total_avoirs = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'in_refund')
-
-                # Calcul final : Factures - Avoirs
-                record.factures_cumulees = total_factures + total_avoirs
-            else:
-                record.factures_cumulees = 0.0
-
-                
-    # Calcule les dépenses cumulées
-    @api.depends('factures_cumulees', 'oda_d', 'ffnp', 'stocks', 'provisions')
-    def _compute_depenses_cumulees(self):
-        """
-        Dépenses cumulées = Factures Cumulées (fournisseurs) + ODA D. + Factures Fournisseurs Non Parvenues 
-        + Stocks + Provisions
-        """
-        for record in self:
-            record.depenses_cumulees = round(
-                (record.factures_cumulees or 0) + 
-                (record.oda_d or 0) + 
-                (record.ffnp or 0) + 
-                (record.stocks or 0) + 
-                (record.provisions or 0), 2
-            )
-
-    # Calcule l'activité cumulée
-    @api.depends('name', 'od_facture', 'non_facture', 'trop_facture')
-    def _compute_activite_cumulee(self):
-        """
-        Calcule le total hors taxes des factures clients,
-        en soustrayant les montants des factures d'avoir (out_refund).
-        """
-        for record in self:
-            if record.name:
-                # Recherche des factures et avoirs liés au compte analytique
-                move_lines = self.env['account.move.line'].search([
-                    ('analytic_distribution', 'in', [record.name.id]),
-                    ('move_id.move_type', 'in', ['out_invoice', 'out_refund']),
-                    ('move_id.state', '=', 'posted')
-                ])
-
-                # Éliminer les doublons de factures
-                move_ids = move_lines.mapped('move_id')
-
-                # Calcul des factures et des avoirs
-                total_factures = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'out_invoice')
-                total_avoirs = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'out_refund')
-
-                # Calcul final : Factures - Avoirs + ajustements
-                record.activite_cumulee = (total_factures + total_avoirs) + \
-                                        (record.od_facture or 0) + \
-                                        (record.non_facture or 0) + \
-                                        (record.trop_facture or 0)
-            else:
-                record.activite_cumulee = 0.0
-
-
-
-    @api.depends('activite_cumulee', 'depenses_cumulees')
-    def _compute_resultat_chantier_cumule(self):
-        for record in self:
-            # Vérifie si l'une des valeurs est nulle
-            if record.activite_cumulee is None or record.depenses_cumulees is None:
-                record.resultat_chantier_cumule = 0.0  # Ou une autre valeur par défaut si nécessaire
-            else:
-                # Calcule le résultat chantier cumulé uniquement si les deux valeurs sont non nulles
-                record.resultat_chantier_cumule = round(record.activite_cumulee + record.depenses_cumulees, 2)
-
-
-    @api.depends('activite_cumulee', 'ca_final')
-    def _compute_pourcentage_avancement(self):
-        for record in self:
-            if record.ca_final:
-                # Calcul du pourcentage avec 2 décimales
-                record.pourcentage_avancement = round((record.activite_cumulee or 0) / record.ca_final * 100, 2)
-                # Stockage en entier
-                record.stockage_pourcentage = int(record.pourcentage_avancement)
-            else:
-                record.pourcentage_avancement = 0.0
-                record.stockage_pourcentage = 0
-
-    
-    # Ajout des méthodes supplémentaires pour l'analyse des projets
-    def get_all_projets(self):
-        """
-        Retourne tous les projets, qu'ils soient en cours ou terminés.
-        """
-        projets = self.search([])
-        projets_data = []
-        
-        for projet in projets:
-            projets_data.append({
-                'id_code_project': projet.name.id,
-                'code_projet': projet.name.name,
-                'libelle': projet.libelle,
-                'pourcentage_avancement': projet.pourcentage_avancement,
-                'resultat_chantier_cumule': projet.resultat_chantier_cumule,
-                'ca_final': projet.ca_final,
-                'date': projet.date,
-                'plan_id': projet.plan_id.id, 
-                'factures_cumulees': projet.factures_cumulees,
-                'depenses_cumulees': projet.depenses_cumulees,  
-                'activite_cumulee': projet.activite_cumulee,  
+        terms_lines = sorted(terms["line_ids"], key=lambda t: t.get('date'))
+        amount_by_date = {}
+        for term in terms_lines:
+            key = frozendict({
+                'date': term['date'],
             })
-        
-        return projets_data
-
-
-    @api.model
-    def get_all_plans(self):
-        """
-        Retourne tous les plans analytiques disponibles.
-        """
-        plans = self.env['account.analytic.plan'].search([])
-        plans_data = []
-
-        print("Nombre de plans trouvés :", len(plans))
-
-        for plan in plans:
-            plans_data.append({
-                'id': plan.id,
-                'name': plan.name,
+            results = amount_by_date.setdefault(key, {
+                'date': format_date(self.env, term['date']),
+                'amount': 0.0,
             })
-            print("Plan ID:", plan.id, ", Nom:", plan.name)
+            results['amount'] += term['foreign_amount']
+        return amount_by_date
 
-        # Retourne les données dans un format structuré
-        return {
-            'count': len(plans),
-            'plans': plans_data,
+    @api.constrains('line_ids', 'early_discount')
+    def _check_lines(self):
+        round_precision = self.env['decimal.precision'].precision_get('Payment Terms')
+        for terms in self:
+            total_percent = sum(line.value_amount for line in terms.line_ids if line.value == 'percent')
+            if float_round(total_percent, precision_digits=round_precision) != 100:
+                raise ValidationError(_('The Payment Term must have at least one percent line and the sum of the percent must be 100%.'))
+            if len(terms.line_ids) > 1 and terms.early_discount:
+                raise ValidationError(
+                    _("The Early Payment Discount functionality can only be used with payment terms using a single 100% line. "))
+            if terms.early_discount and terms.discount_percentage <= 0.0:
+                raise ValidationError(_("The Early Payment Discount must be strictly positive."))
+            if terms.early_discount and terms.discount_days <= 0:
+                raise ValidationError(_("The Early Payment Discount days must be strictly positive."))
+
+    def _compute_terms(self, date_ref, currency, company, tax_amount, tax_amount_currency, sign, untaxed_amount, untaxed_amount_currency, cash_rounding=None):
+        """Get the distribution of this payment term.
+        :param date_ref: The move date to take into account
+        :param currency: the move's currency
+        :param company: the company issuing the move
+        :param tax_amount: the signed tax amount for the move
+        :param tax_amount_currency: the signed tax amount for the move in the move's currency
+        :param untaxed_amount: the signed untaxed amount for the move
+        :param untaxed_amount_currency: the signed untaxed amount for the move in the move's currency
+        :param sign: the sign of the move
+        :param cash_rounding: the cash rounding that should be applied (or None).
+            We assume that the input total in move currency (tax_amount_currency + untaxed_amount_currency) is already cash rounded.
+            The cash rounding does not change the totals: Consider the sum of all the computed payment term amounts in move / company currency.
+            It is the same as the input total in move / company currency.
+        :return (list<tuple<datetime.date,tuple<float,float>>>): the amount in the company's currency and
+            the document's currency, respectively for each required payment date
+        """
+        self.ensure_one()
+        company_currency = company.currency_id
+        total_amount = tax_amount + untaxed_amount
+        total_amount_currency = tax_amount_currency + untaxed_amount_currency
+        rate = abs(total_amount_currency / total_amount) if total_amount else 0.0
+
+        pay_term = {
+            'total_amount': total_amount,
+            'discount_percentage': self.discount_percentage if self.early_discount else 0.0,
+            'discount_date': date_ref + relativedelta(days=(self.discount_days or 0)) if self.early_discount else False,
+            'discount_balance': 0,
+            'line_ids': [],
         }
 
+        if self.early_discount:
+            # Early discount is only available on single line, 100% payment terms.
+            discount_percentage = self.discount_percentage / 100.0
+            if self.early_pay_discount_computation in ('excluded', 'mixed'):
+                pay_term['discount_balance'] = company_currency.round(total_amount - untaxed_amount * discount_percentage)
+                pay_term['discount_amount_currency'] = currency.round(total_amount_currency - untaxed_amount_currency * discount_percentage)
+            else:
+                pay_term['discount_balance'] = company_currency.round(total_amount * (1 - discount_percentage))
+                pay_term['discount_amount_currency'] = currency.round(total_amount_currency * (1 - discount_percentage))
 
-    @api.model
-    def get_resultat_chantier_total(self, start_date=None, end_date=None):
-        # Logique pour calculer le résultat chantier total selon les dates
-        domain = []
-        if start_date:
-            domain.append(('date', '>=', start_date))
-        if end_date:
-            domain.append(('date', '<=', end_date))
+            if cash_rounding:
+                cash_rounding_difference_currency = cash_rounding.compute_difference(currency, pay_term['discount_amount_currency'])
+                if not currency.is_zero(cash_rounding_difference_currency):
+                    pay_term['discount_amount_currency'] += cash_rounding_difference_currency
+                    pay_term['discount_balance'] = company_currency.round(pay_term['discount_amount_currency'] / rate) if rate else 0.0
 
-        total = sum(self.search(domain).mapped('resultat_chantier_cumule'))
-        return {'resultat_chantier_total': total}
-    
+        residual_amount = total_amount
+        residual_amount_currency = total_amount_currency
 
-    @api.model
-    def get_progression_moyenne(self, start_date=None, end_date=None):
-        # Logique pour calculer la progression moyenne selon les dates
-        domain = []
-        if start_date:
-            domain.append(('date', '>=', start_date))
-        if end_date:
-            domain.append(('date', '<=', end_date))
-
-        progression = self.search(domain).mapped('pourcentage_avancement')
-        if progression:
-            return {'progression_moyenne': sum(progression) / len(progression)}
-        return {'progression_moyenne': 0}
-    
-    def get_statistiques_projets(self):
-        """
-        Retourne des statistiques générales sur les projets sans distinction entre projets en cours et terminés.
-        """
-        projets = self.get_all_projets()  
-        total_projets = len(projets) 
-        return {
-            'total_projets': total_projets,
-            'resultat_chantier_total': self.get_resultat_chantier_total().get('resultat_chantier_total', 0),
-            'progression_moyenne': self.get_progression_moyenne().get('progression_moyenne', 0),
-        }
-    
-    def get_donnees_projets_independantes(self):
-        """
-        Retourne une liste des données indépendantes pour chaque projet.
-        Chaque projet est représenté par un dictionnaire avec ses informations clés.
-        """
-        projets = self.get_all_projets() 
-        projets_donnees = [] 
-
-        for projet in projets:
-            projet_donnees = {
-                'id_code_project': projet['id_code_project'],
-                'code_projet': projet['code_projet'],
-                'libelle': projet['libelle'],
-                'pourcentage_avancement': projet['pourcentage_avancement'],
-                'resultat_chantier_cumule': projet['resultat_chantier_cumule'],
-                'ca_final': projet['ca_final'],
-                'date': projet['date'],
-                'plan_id': projet['plan_id'],
-                'factures_cumulees': projet['factures_cumulees'], 
-                'depenses_cumulees': projet['depenses_cumulees'],
-                'activite_cumulee' : projet['activite_cumulee'],
+        for i, line in enumerate(self.line_ids):
+            term_vals = {
+                'date': line._get_due_date(date_ref),
+                'company_amount': 0,
+                'foreign_amount': 0,
             }
-            projets_donnees.append(projet_donnees)  
-        
-        return projets_donnees
+
+            # The last line is always the balance, no matter the type
+            on_balance_line = i == len(self.line_ids) - 1
+            if on_balance_line:
+                term_vals['company_amount'] = residual_amount
+                term_vals['foreign_amount'] = residual_amount_currency
+            elif line.value == 'fixed':
+                # Fixed amounts
+                term_vals['company_amount'] = sign * company_currency.round(line.value_amount / rate) if rate else 0.0
+                term_vals['foreign_amount'] = sign * currency.round(line.value_amount)
+            else:
+                # Percentage amounts
+                line_amount = company_currency.round(total_amount * (line.value_amount / 100.0))
+                line_amount_currency = currency.round(total_amount_currency * (line.value_amount / 100.0))
+                term_vals['company_amount'] = line_amount
+                term_vals['foreign_amount'] = line_amount_currency
+
+            if cash_rounding and not on_balance_line:
+                # The value `residual_amount_currency` is always cash rounded (in case of cash rounding).
+                #   * We assume `total_amount_currency` is cash rounded.
+                #   * We only subtract cash rounded amounts.
+                # Thus the balance line is cash rounded.
+                cash_rounding_difference_currency = cash_rounding.compute_difference(currency, term_vals['foreign_amount'])
+                if not currency.is_zero(cash_rounding_difference_currency):
+                    term_vals['foreign_amount'] += cash_rounding_difference_currency
+                    term_vals['company_amount'] = company_currency.round(term_vals['foreign_amount'] / rate) if rate else 0.0
+
+            residual_amount -= term_vals['company_amount']
+            residual_amount_currency -= term_vals['foreign_amount']
+            pay_term['line_ids'].append(term_vals)
+
+        return pay_term
+
+    @api.ondelete(at_uninstall=False)
+    def _unlink_except_referenced_terms(self):
+        if self.env['account.move'].search_count([('invoice_payment_term_id', 'in', self.ids)], limit=1):
+            raise UserError(_('You can not delete payment terms as other records still reference it. However, you can archive it.'))
+
+    def _get_last_discount_date(self, date_ref):
+        self.ensure_one()
+        return date_ref + relativedelta(days=self.discount_days or 0) if self.early_discount else False
+
+    def _get_last_discount_date_formatted(self, date_ref):
+        self.ensure_one()
+        if not date_ref:
+            return None
+        return format_date(self.env, self._get_last_discount_date(date_ref))
+
+class AccountPaymentTermLine(models.Model):
+    _name = "account.payment.term.line"
+    _description = "Payment Terms Line"
+    _order = "id"
+
+    value = fields.Selection([
+            ('percent', 'Percent'),
+            ('fixed', 'Fixed')
+        ], required=True, default='percent',
+        help="Select here the kind of valuation related to this payment terms line.")
+    value_amount = fields.Float(string='Due', digits='Payment Terms',
+                                help="For percent enter a ratio between 0-100.",
+                                compute='_compute_value_amount', store=True, readonly=False)
+    delay_type = fields.Selection([
+            ('days_after', 'Days after invoice date'),
+            ('days_after_end_of_month', 'Days after end of month'),
+            ('days_after_end_of_next_month', 'Days after end of next month'),
+            ('days_end_of_month_on_the', 'Days end of month on the'),
+        ], required=True, default='days_after')
+    display_days_next_month = fields.Boolean(compute='_compute_display_days_next_month')
+    days_next_month = fields.Char(
+        string='Days on the next month',
+        readonly=False,
+        default='10',
+        size=2,
+    )
+    nb_days = fields.Integer(string='Days', readonly=False, store=True, compute='_compute_days')
+    payment_id = fields.Many2one('account.payment.term', string='Payment Terms', required=True, index=True, ondelete='cascade')
+
+    def _get_due_date(self, date_ref):
+        self.ensure_one()
+        due_date = fields.Date.from_string(date_ref) or fields.Date.today()
+        if self.delay_type == 'days_after_end_of_month':
+            return date_utils.end_of(due_date, 'month') + relativedelta(days=self.nb_days)
+        elif self.delay_type == 'days_after_end_of_next_month':
+            return date_utils.end_of(due_date + relativedelta(months=1), 'month') + relativedelta(days=self.nb_days)
+        elif self.delay_type == 'days_end_of_month_on_the':
+            try:
+                days_next_month = int(self.days_next_month)
+            except ValueError:
+                days_next_month = 1
+
+            if not days_next_month:
+                return date_utils.end_of(due_date + relativedelta(days=self.nb_days), 'month')
+
+            return due_date + relativedelta(days=self.nb_days) + relativedelta(months=1, day=days_next_month)
+        return due_date + relativedelta(days=self.nb_days)
+
+    @api.constrains('days_next_month')
+    def _check_valid_char_value(self):
+        for record in self:
+            if record.days_next_month and record.days_next_month.isnumeric():
+                if not (0 <= int(record.days_next_month) <= 31):
+                    raise ValidationError(_('The days added must be between 0 and 31.'))
+            else:
+                raise ValidationError(_('The days added must be a number and has to be between 0 and 31.'))
+
+    @api.depends('delay_type')
+    def _compute_display_days_next_month(self):
+        for record in self:
+            record.display_days_next_month = record.delay_type == 'days_end_of_month_on_the'
+
+    @api.constrains('value', 'value_amount')
+    def _check_percent(self):
+        for term_line in self:
+            if term_line.value == 'percent' and (term_line.value_amount < 0.0 or term_line.value_amount > 100.0):
+                raise ValidationError(_('Percentages on the Payment Terms lines must be between 0 and 100.'))
+
+    @api.depends('payment_id')
+    def _compute_days(self):
+        for line in self:
+            #Line.payment_id.line_ids[-1] is the new line that has been just added when clicking "add a new line"
+            if not line.nb_days and len(line.payment_id.line_ids) > 1:
+                line.nb_days = line.payment_id.line_ids[-2].nb_days + 30
+            else:
+                line.nb_days = line.nb_days
+
+    @api.depends('payment_id')
+    def _compute_value_amount(self):
+        for line in self:
+            if line.value == 'fixed':
+                line.value_amount = 0
+            else:
+                amount = 0
+                for i in line.payment_id.line_ids.filtered(lambda r: r.value == 'percent'):
+                    amount += i['value_amount']
+                line.value_amount = 100 - amount

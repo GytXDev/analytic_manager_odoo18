@@ -1,40 +1,42 @@
-.analytic-manager {
+.analytic-manager-excel {
     font-family: Arial, sans-serif;
     margin: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
-.analytic-manager table {
+.analytic-manager-excel table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 20px;
 }
 
-.analytic-manager th,
-.analytic-manager td {
+.analytic-manager-excel th,
+.analytic-manager-excel td {
     padding: 10px;
     text-align: center;
     border: 1px solid #ddd;
 }
 
-.analytic-manager th {
+.analytic-manager-excel th {
     background-color: #138d75;
     color: white;
 }
 
-.analytic-manager .highlight {
+.analytic-manager-excel .highlight {
     background-color: yellow;
 }
 
-.analytic-manager .lowlight {
+.analytic-manager-excel .lowlight {
     background-color: #3498db;
 }
-
-.analytic-manager .total {
+ 
+.analytic-manager-excel .total {
     font-weight: bold;
     background-color: #f9f9f9;
 }
 
-.analytic-manager .container {
+.analytic-manager-excel .container {
     display: flex;
     justify-content: flex-end;
     padding: 20px;
@@ -42,26 +44,26 @@
     width: 80%;
 }
 
-.analytic-manager .summary-table {
+.analytic-manager-excel .summary-table {
     width: 40%;
     font-weight: bold;
     margin: 0;
 }
 
-.analytic-manager .summary-table th {
+.analytic-manager-excel .summary-table th {
     background-color: #ddd;
 }
 
-.analytic-manager .plan {
+.analytic-manager-excel .plan {
     color: red;
 }
 
-.analytic-manager .export-container {
+.analytic-manager-excel .export-container {
     display: flex;
     justify-content: flex-end;
 }
 
-.analytic-manager .export-btn {
+.analytic-manager-excel .export-btn {
     background-color: #138d75;
     color: white;
     border: none;
@@ -73,10 +75,10 @@
     display: inline-block;
 }
 
-.analytic-manager .export-btn i {
+.analytic-manager-excel .export-btn i {
     margin-right: 5px;
 }
 
-.analytic-manager .hidden {
+.analytic-manager-excel .hidden {
     display: none;
 }

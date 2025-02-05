@@ -66,15 +66,9 @@ class AnalyticDashboard(models.Model):
     pourcentage_avancement = fields.Float(
         string="Avancement (%)",
         compute='_compute_pourcentage_avancement',
-        store=True  # Stockage dans la base de données
+        store=True 
     )
 
-    # Champ pour stocker le pourcentage sous forme d'entier
-    stockage_pourcentage = fields.Integer(
-        string="Stockage Pourcentage",
-        compute='_compute_pourcentage_avancement',  
-        store=True
-    )
 
     resultat_chantier_cumule = fields.Float(
         string="Résultat Chantier Cumulé (FCFA)", 
@@ -244,13 +238,9 @@ class AnalyticDashboard(models.Model):
         for record in self:
             if record.ca_final:
                 # Calcul du pourcentage avec 2 décimales
-                record.pourcentage_avancement = round((record.activite_cumulee or 0) / record.ca_final * 100, 2)
-                # Stockage en entier
-                record.stockage_pourcentage = int(record.pourcentage_avancement)
+                record.pourcentage_avancement = round((record.activite_cumulee or 0) / record.ca_final, 2)
             else:
                 record.pourcentage_avancement = 0.0
-                record.stockage_pourcentage = 0
-
 
      # Calcule l'écart d'activité par rapport au mois précédent
     @api.depends('name', 'activite_cumulee')
@@ -282,11 +272,11 @@ class AnalyticDashboard(models.Model):
 
     
     # Ajout des méthodes supplémentaires pour l'analyse des projets
-    def get_all_projets(self):
-        """
-        Retourne tous les projets, qu'ils soient en cours ou terminés.
-        """
-        projets = self.search([])
+    def get_all_projets(self, plan_id=None):
+        domain = []
+        if plan_id:
+            domain.append(('plan_id', '=', plan_id))
+        projets = self.search(domain)
         projets_data = []
         
         for projet in projets:
@@ -376,33 +366,29 @@ class AnalyticDashboard(models.Model):
             'progression_moyenne': self.get_progression_moyenne().get('progression_moyenne', 0),
         }
     
-    def get_donnees_projets_independantes(self):
-        """
-        Retourne une liste des données indépendantes pour chaque projet.
-        Chaque projet est représenté par un dictionnaire avec ses informations clés.
-        """
-        projets = self.get_all_projets() 
+    def get_donnees_projets_independantes(self, plan_id=None):
+        projets = self.get_all_projets(plan_id) 
         projets_donnees = [] 
 
         for projet in projets:
             projet_donnees = {
                 'id_code_project': projet['id_code_project'],
                 'code_projet': projet['code_projet'],
-                'libelle': projet['libelle'],
-                'pourcentage_avancement': projet['pourcentage_avancement'],
-                'resultat_chantier_cumule': projet['resultat_chantier_cumule'],
-                'ca_final': projet['ca_final'],
+                'libelle': projet['libelle'] or 'Non renseigné',  # Afficher "Non renseigné" si le libellé est False
+                'pourcentage_avancement': projet['pourcentage_avancement'] or 0,
+                'resultat_chantier_cumule': projet['resultat_chantier_cumule'] or 0,
+                'ca_final': projet['ca_final'] or 0,
                 'date': projet['date'],
                 'plan_id': projet['plan_id'],
-                'factures_cumulees': projet['factures_cumulees'], 
-                'depenses_cumulees': projet['depenses_cumulees'],
-                'activite_cumulee' : projet['activite_cumulee'],
-                'non_facture' : projet['non_facture'],
-                'oda_d': projet['oda_d'],
-                'ffnp': projet['ffnp'],
-                'stocks': projet['stocks'],
-                'provisions': projet['provisions'],
-                'debours_previsionnels': projet['debours_previsionnels'],
+                'factures_cumulees': projet['factures_cumulees'] or 0, 
+                'depenses_cumulees': projet['depenses_cumulees'] or 0,
+                'activite_cumulee': projet['activite_cumulee'] or 0,
+                'non_facture': projet['non_facture'] or 0,
+                'oda_d': projet['oda_d'] or 0,
+                'ffnp': projet['ffnp'] or 0,
+                'stocks': projet['stocks'] or 0,
+                'provisions': projet['provisions'] or 0,
+                'debours_previsionnels': projet['debours_previsionnels'] or 0,
             }
             projets_donnees.append(projet_donnees)  
         

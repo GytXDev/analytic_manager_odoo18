@@ -32,12 +32,12 @@ class DashboardControllers(http.Controller):
         return statistiques.get_statistiques_projets()
     
     @http.route('/dashboard/liste_projets', type="json", auth="user", website=True)
-    def get_donnees_projets_independantes(self):
+    def get_donnees_projets_independantes(self, plan_id=None):
         """
         Retourne la liste des projets avec leurs données indépendantes.
         """
         projects = request.env['analytic.dashboard'].sudo()
-        return projects.get_donnees_projets_independantes()
+        return projects.get_donnees_projets_independantes(plan_id)
     
     @http.route('/dashboard/update_dashboard', type="json", auth="user", website=True)
     def create_dashboard_for_all_analytic_accounts(self):
