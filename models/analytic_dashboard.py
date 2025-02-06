@@ -1,7 +1,10 @@
 # analytic_manager\models\analytic_dashboard.py
 from odoo import models, fields, api, _
+from odoo.http import content_disposition, request
 from odoo.exceptions import ValidationError
 from datetime import timedelta
+import io
+import xlsxwriter
 
 class AnalyticDashboard(models.Model):
     _name = 'analytic.dashboard'
@@ -50,7 +53,6 @@ class AnalyticDashboard(models.Model):
     stocks = fields.Float("Stocks")
     provisions = fields.Float("Provisions")
     
-
     ca_final = fields.Float(
         string="CA Final (FCFA)", 
         compute='_compute_ca_final', 
@@ -69,14 +71,18 @@ class AnalyticDashboard(models.Model):
         store=True 
     )
 
-
     resultat_chantier_cumule = fields.Float(
         string="Résultat Chantier Cumulé (FCFA)", 
         compute='_compute_resultat_chantier_cumule', 
         store=False
     )
 
-     # Ajout des champs d'écart temporel
+    plan = fields.Float(
+        string="Plan",
+        help="Objectif financier à atteindre sur une exploitation."
+    )
+
+    # Ajout des champs d'écart temporel
     ecart_activite = fields.Float(
         string="Écart Activité (FCFA)", 
         compute='_compute_ecart_activite', 
@@ -88,7 +94,6 @@ class AnalyticDashboard(models.Model):
         compute='_compute_ecart_depenses', 
         store=False
     )
-
 
     def create_dashboard_for_all_analytic_accounts(self):
         """
@@ -284,6 +289,8 @@ class AnalyticDashboard(models.Model):
                 'id_code_project': projet.name.id,
                 'code_projet': projet.name.name,
                 'libelle': projet.libelle,
+                'marche_initial': projet.marche_initial,
+                'ts': projet.ts,
                 'pourcentage_avancement': projet.pourcentage_avancement,
                 'resultat_chantier_cumule': projet.resultat_chantier_cumule,
                 'ca_final': projet.ca_final,
@@ -293,6 +300,7 @@ class AnalyticDashboard(models.Model):
                 'depenses_cumulees': projet.depenses_cumulees,  
                 'activite_cumulee': projet.activite_cumulee,  
                 'non_facture': projet.non_facture,
+                'od_facture': projet.od_facture,
                 'oda_d': projet.oda_d,
                 'ffnp': projet.ffnp,
                 'stocks': projet.stocks,
@@ -365,6 +373,18 @@ class AnalyticDashboard(models.Model):
             'resultat_chantier_total': self.get_resultat_chantier_total().get('resultat_chantier_total', 0),
             'progression_moyenne': self.get_progression_moyenne().get('progression_moyenne', 0),
         }
+    # Méthode pour mettre à jour un projet spécifique
+    def update_project(self, project_id, values):
+        """
+        Met à jour les champs d'un projet spécifique.
+        """
+        project = self.search([('name.id', '=', project_id)], limit=1)
+        if project:
+            project.write(values)
+            return {'status': 'success', 'message': 'Projet mis à jour avec succès'}
+        else:
+            return {'status': 'error', 'message': 'Projet non trouvé'}
+    
     
     def get_donnees_projets_independantes(self, plan_id=None):
         projets = self.get_all_projets(plan_id) 
@@ -375,6 +395,8 @@ class AnalyticDashboard(models.Model):
                 'id_code_project': projet['id_code_project'],
                 'code_projet': projet['code_projet'],
                 'libelle': projet['libelle'] or 'Non renseigné',  # Afficher "Non renseigné" si le libellé est False
+                'marche_initial': projet['marche_initial'] or 0,
+                'ts': projet['ts'] or 0,
                 'pourcentage_avancement': projet['pourcentage_avancement'] or 0,
                 'resultat_chantier_cumule': projet['resultat_chantier_cumule'] or 0,
                 'ca_final': projet['ca_final'] or 0,
@@ -393,3 +415,50 @@ class AnalyticDashboard(models.Model):
             projets_donnees.append(projet_donnees)  
         
         return projets_donnees
+
+    def export_to_excel(self):
+        """
+        Génère un fichier Excel avec les données des projets.
+        """
+        output = io.BytesIO()
+        workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+        worksheet = workbook.add_worksheet()
+
+        # Définir les en-têtes
+        headers = [
+            'Code Projet', 'Libellé', 'Marché Initial', 'TS', 'CA Final', 'Fact Comptable Cumulées',
+            'OD Facture', 'Non Facturé', 'Trop Facturé', 'Activité Cumulée', '%avt',
+            'Débours Comptable Cumulé', 'ODA D', 'FFNP', 'Stocks', 'Provisions',
+            'Total Déboursés', 'Dépenses Cumulées', 'Resultat Chantier'
+        ]
+        for col_num, header in enumerate(headers):
+            worksheet.write(0, col_num, header)
+
+        # Remplir les données des projets
+        row_num = 1
+        projets = self.search([])
+        for projet in projets:
+            worksheet.write(row_num, 0, projet.name.name)
+            worksheet.write(row_num, 1, projet.libelle)
+            worksheet.write(row_num, 2, projet.marche_initial)
+            worksheet.write(row_num, 3, projet.ts)
+            worksheet.write(row_num, 4, projet.ca_final)
+            worksheet.write(row_num, 5, projet.factures_cumulees)
+            worksheet.write(row_num, 6, projet.od_facture)
+            worksheet.write(row_num, 7, projet.non_facture)
+            worksheet.write(row_num, 8, projet.trop_facture)
+            worksheet.write(row_num, 9, projet.activite_cumulee)
+            worksheet.write(row_num, 10, projet.pourcentage_avancement * 100)
+            worksheet.write(row_num, 11, projet.debours_comptable_cumule)
+            worksheet.write(row_num, 12, projet.oda_d)
+            worksheet.write(row_num, 13, projet.ffnp)
+            worksheet.write(row_num, 14, projet.stocks)
+            worksheet.write(row_num, 15, projet.provisions)
+            worksheet.write(row_num, 16, projet.total_debourses)
+            worksheet.write(row_num, 17, projet.depenses_cumulees)
+            worksheet.write(row_num, 18, projet.resultat_chantier_cumule)
+            row_num += 1
+
+        workbook.close()
+        output.seek(0)
+        return output

@@ -39,7 +39,10 @@ export class ExcelAnalytic extends Component {
                     plan.total_total_debourses = plan.projets.reduce((sum, p) => sum + (p.total_debourses || 0), 0);
                     plan.total_depenses_cumulees = plan.projets.reduce((sum, p) => sum + (p.depenses_cumulees || 0), 0);
                     plan.total_resultat_chantier_cumule = plan.projets.reduce((sum, p) => sum + (p.resultat_chantier_cumule || 0), 0);
-                    plan.moyenne_avancement = (plan.projets.reduce((sum, p) => sum + ((p.pourcentage_avancement || 0) * 100), 0) / plan.projets.length).toFixed(2);
+                    plan.moyenne_avancement = parseFloat((plan.projets.reduce((sum, p) => sum + ((p.pourcentage_avancement || 0) * 100), 0) / plan.projets.length).toFixed(2)) || 0;
+
+                    // Calcul du pourcentage d'activité par rapport au plan
+                    plan.pourcentage_activite_plan = plan.plan ? (plan.total_activite_cumulee / plan.plan) * 100 : 0;
                 }
 
                 this.plans.push(...plans);
@@ -47,6 +50,34 @@ export class ExcelAnalytic extends Component {
                 console.error('Erreur lors de la récupération des plans et projets:', error);
             }
         });
+    }
+
+    async saveProjectData(projet, fieldName, newValue) {
+        console.log(`ID du projet: ${projet.id_code_project}, Nom du projet: ${projet.code_projet}, Champ modifié: ${fieldName}, Nouvelle valeur: ${newValue}`);
+        try {
+            await rpc('/dashboard/update_project', {
+                id: projet.id_code_project,
+                [fieldName]: newValue,
+            });
+        } catch (error) {
+            console.error('Erreur lors de la sauvegarde des données du projet:', error);
+        }
+    }
+
+    async savePlanData(plan, fieldName, newValue, oldValue) {
+        console.log(`ID du plan: ${plan.id}, Champ modifié: ${fieldName}, Ancienne valeur: ${oldValue}, Nouvelle valeur: ${newValue}`);
+        try {
+            await rpc('/dashboard/update_plan', {
+                id: plan.id,
+                [fieldName]: newValue,
+            });
+        } catch (error) {
+            console.error('Erreur lors de la sauvegarde des données du plan:', error);
+        }
+    }
+
+    exportToExcel() {
+        window.location.href = '/dashboard/export_to_excel';
     }
 }
 

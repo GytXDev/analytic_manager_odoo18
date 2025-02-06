@@ -60,3 +60,43 @@ class DashboardControllers(http.Controller):
         result = plans.get_all_plans()
 
         return {'status': 'success', 'data': result}
+    
+    # Route pour la mise à jour des données d'un projet
+    @http.route('/dashboard/update_project', type='json', auth="user", website=True)
+    def update_project(self, id, **kwargs):
+        """
+        Met à jour les données d'un projet spécifique.
+        """
+        project_model = request.env['analytic.dashboard'].sudo()
+        result = project_model.update_project(id, kwargs)
+        return result
+    
+    @http.route('/dashboard/update_plan', type='json', auth="user", website=True)
+    def update_plan(self, id, **kwargs):
+        """
+        Met à jour les données d'un plan spécifique.
+        """
+        plan_model = request.env['analytic.dashboard'].sudo()
+        plan = plan_model.browse(id)
+        if plan:
+            plan.write(kwargs)
+            return {'status': 'success', 'message': 'Plan mis à jour avec succès'}
+        else:
+            return {'status': 'error', 'message': 'Plan non trouvé'}
+    
+    @http.route('/dashboard/export_to_excel', type='http', auth="user", website=True)
+    def export_to_excel(self):
+        """
+        Exporte les données des projets vers un fichier Excel.
+        """
+        dashboard_model = request.env['analytic.dashboard'].sudo()
+        output = dashboard_model.export_to_excel()
+
+        # Définir le nom du fichier
+        filename = 'Projets_Analytique.xlsx'
+        headers = [
+            ('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+            ('Content-Disposition', content_disposition(filename))
+        ]
+
+        return request.make_response(output, headers)
