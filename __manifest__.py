@@ -1,6 +1,6 @@
 # __manifest__.py
 {
-    'name': "Module de Gestion Analytique",
+    'name': "Gestion Analytique",
     'summary': "Gestion des résultats analytiques par exploitation",
     'description': """
         Module Odoo pour gérer les résultats analytiques, calculer les totaux par exploitation,

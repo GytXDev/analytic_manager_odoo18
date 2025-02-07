@@ -32,6 +32,7 @@
                             <th>Provisions</th>
                             <th>Total Déboursés</th>
                             <th>Dépenses Cumulées</th>
+                            <th>Débours Prévisionnels</th>
                             <th>Resultat Chantier</th>
                         </tr>
                     </thead>
@@ -101,6 +102,7 @@
                                 </td>
                                 <td><t t-esc="projet.total_debourses || 0" /></td>
                                 <td><t t-esc="projet.depenses_cumulees || 0" /></td>
+                                <td><t t-esc="projet.debours_previsionnels || 0"/></td>
                                 <td><t t-esc="projet.resultat_chantier_cumule || 0" /></td>
                             </tr>
                         </t>
@@ -119,7 +121,7 @@
                             <td><t t-esc="plan.total_non_facture || 0" /></td>
                             <td><t t-esc="plan.total_trop_facture || 0" /></td>
                             <td><t t-esc="plan.total_activite_cumulee || 0" /></td>
-                            <td class="lowlight"><t t-esc="plan.moyenne_avancement.toFixed() || 0" />%</td>
+                            <td class="lowlight"><t t-esc="plan.moyenne_avancement.toFixed(2) || 0" />%</td>
                             <td class="highlight"><t t-esc="plan.total_debours_comptable_cumule || 0" /></td>
                             <td><t t-esc="plan.total_oda_d || 0" /></td>
                             <td><t t-esc="plan.total_ffnp || 0" /></td>
@@ -127,6 +129,7 @@
                             <td><t t-esc="plan.total_provisions || 0" /></td>
                             <td><t t-esc="plan.total_total_debourses || 0" /></td>
                             <td><t t-esc="plan.total_depenses_cumulees || 0" /></td>
+                            <td><t t-esc="plan.total_debours_previsionnels || 0"/></td>
                             <td><t t-esc="plan.total_resultat_chantier_cumule || 0" /></td>
                         </tr>
                     </tfoot>

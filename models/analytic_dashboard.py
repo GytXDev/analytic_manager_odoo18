@@ -45,6 +45,8 @@ class AnalyticDashboard(models.Model):
     trop_facture = fields.Float("Trop Facturé")
     depenses_cumulees = fields.Float(string="Dépenses Cumulées", compute='_compute_depenses_cumulees', store=False)
     debours_previsionnels = fields.Float("Débours Prévisionnels")
+    debours_comptable_cumule = fields.Float("Débours comptable Cumulé")
+    total_debourses = fields.Float("Total Déboursés")
   
     # Champs supplémentaires à renseigner 
     od_facture = fields.Float("Opérations Diverses Facturées")
@@ -296,6 +298,7 @@ class AnalyticDashboard(models.Model):
                 'ca_final': projet.ca_final,
                 'date': projet.date,
                 'plan_id': projet.plan_id.id, 
+                'trop_facture': projet.trop_facture,
                 'factures_cumulees': projet.factures_cumulees,
                 'depenses_cumulees': projet.depenses_cumulees,  
                 'activite_cumulee': projet.activite_cumulee,  
@@ -306,6 +309,7 @@ class AnalyticDashboard(models.Model):
                 'stocks': projet.stocks,
                 'provisions': projet.provisions,
                 'debours_previsionnels': projet.debours_previsionnels,
+                'debours_comptable_cumule': projet.debours_comptable_cumule,
             })
         
         return projets_data
@@ -384,6 +388,17 @@ class AnalyticDashboard(models.Model):
             return {'status': 'success', 'message': 'Projet mis à jour avec succès'}
         else:
             return {'status': 'error', 'message': 'Projet non trouvé'}
+
+    def update_all_projects(self, values):
+        """
+        Met à jour les champs de tous les projets.
+        """
+        projects = self.search([])
+        if projects:
+            projects.write(values)
+            return {'status': 'success', 'message': 'Tous les projets ont été mis à jour avec succès'}
+        else:
+            return {'status': 'error', 'message': 'Aucun projet trouvé'}
     
     
     def get_donnees_projets_independantes(self, plan_id=None):
@@ -402,63 +417,133 @@ class AnalyticDashboard(models.Model):
                 'ca_final': projet['ca_final'] or 0,
                 'date': projet['date'],
                 'plan_id': projet['plan_id'],
+                'trop_facture': projet['trop_facture'],
                 'factures_cumulees': projet['factures_cumulees'] or 0, 
                 'depenses_cumulees': projet['depenses_cumulees'] or 0,
                 'activite_cumulee': projet['activite_cumulee'] or 0,
+                'od_facture': projet['od_facture'],
                 'non_facture': projet['non_facture'] or 0,
                 'oda_d': projet['oda_d'] or 0,
                 'ffnp': projet['ffnp'] or 0,
                 'stocks': projet['stocks'] or 0,
                 'provisions': projet['provisions'] or 0,
                 'debours_previsionnels': projet['debours_previsionnels'] or 0,
+                'debours_comptable_cumule': projet['debours_comptable_cumule'] or 0,
             }
             projets_donnees.append(projet_donnees)  
         
         return projets_donnees
+    
+def export_to_excel(self):
+    """
+    Génère un fichier Excel avec les données des projets, regroupés par plan.
+    """
+    output = io.BytesIO()
+    workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+    worksheet = workbook.add_worksheet()
 
-    def export_to_excel(self):
-        """
-        Génère un fichier Excel avec les données des projets.
-        """
-        output = io.BytesIO()
-        workbook = xlsxwriter.Workbook(output, {'in_memory': True})
-        worksheet = workbook.add_worksheet()
+    # Définir les styles
+    header_format = workbook.add_format({
+        'bold': True,
+        'bg_color': '#138d75',
+        'font_color': 'white',
+        'border': 1,
+        'align': 'center',
+        'valign': 'vcenter'
+    })
+    cell_format = workbook.add_format({
+        'border': 1,
+        'align': 'center',
+        'valign': 'vcenter'
+    })
+    highlight_format = workbook.add_format({
+        'bg_color': 'yellow',
+        'border': 1,
+        'align': 'center',
+        'valign': 'vcenter'
+    })
+    lowlight_format = workbook.add_format({
+        'bg_color': '#5dade2',
+        'border': 1,
+        'align': 'center',
+        'valign': 'vcenter'
+    })
+    total_format = workbook.add_format({
+        'bold': True,
+        'bg_color': '#f9f9f9',
+        'border': 1,
+        'align': 'center',
+        'valign': 'vcenter'
+    })
 
-        # Définir les en-têtes
-        headers = [
-            'Code Projet', 'Libellé', 'Marché Initial', 'TS', 'CA Final', 'Fact Comptable Cumulées',
-            'OD Facture', 'Non Facturé', 'Trop Facturé', 'Activité Cumulée', '%avt',
-            'Débours Comptable Cumulé', 'ODA D', 'FFNP', 'Stocks', 'Provisions',
-            'Total Déboursés', 'Dépenses Cumulées', 'Resultat Chantier'
-        ]
+    # Définir les en-têtes
+    headers = [
+        'Code Projet', 'Libellé', 'Marché Initial', 'TS', 'CA Final', 'Fact Comptable Cumulées',
+        'OD Facture', 'Non Facturé', 'Trop Facturé', 'Activité Cumulée', '%avt',
+        'Débours Comptable Cumulé', 'ODA D', 'FFNP', 'Stocks', 'Provisions',
+        'Total Déboursés', 'Dépenses Cumulées', 'Débours Prévisionnels', 'Resultat Chantier'
+    ]
+
+    # Récupérer les projets et les regrouper par plan
+    plans = self.env['account.analytic.plan'].search([])
+    row_num = 0
+
+    for plan in plans:
+        # Ajouter un en-tête pour chaque plan
+        worksheet.merge_range(row_num, 0, row_num, len(headers) - 1, f"Exploitation: {plan.name}", total_format)
+        row_num += 2  # Ajouter un espace après l'en-tête du plan
+
+        # Ajouter les en-têtes des colonnes
         for col_num, header in enumerate(headers):
-            worksheet.write(0, col_num, header)
+            worksheet.write(row_num, col_num, header, header_format)
+        row_num += 1
 
-        # Remplir les données des projets
-        row_num = 1
-        projets = self.search([])
+        projets = self.search([('plan_id', '=', plan.id)])
         for projet in projets:
-            worksheet.write(row_num, 0, projet.name.name)
-            worksheet.write(row_num, 1, projet.libelle)
-            worksheet.write(row_num, 2, projet.marche_initial)
-            worksheet.write(row_num, 3, projet.ts)
-            worksheet.write(row_num, 4, projet.ca_final)
-            worksheet.write(row_num, 5, projet.factures_cumulees)
-            worksheet.write(row_num, 6, projet.od_facture)
-            worksheet.write(row_num, 7, projet.non_facture)
-            worksheet.write(row_num, 8, projet.trop_facture)
-            worksheet.write(row_num, 9, projet.activite_cumulee)
-            worksheet.write(row_num, 10, projet.pourcentage_avancement * 100)
-            worksheet.write(row_num, 11, projet.debours_comptable_cumule)
-            worksheet.write(row_num, 12, projet.oda_d)
-            worksheet.write(row_num, 13, projet.ffnp)
-            worksheet.write(row_num, 14, projet.stocks)
-            worksheet.write(row_num, 15, projet.provisions)
-            worksheet.write(row_num, 16, projet.total_debourses)
-            worksheet.write(row_num, 17, projet.depenses_cumulees)
-            worksheet.write(row_num, 18, projet.resultat_chantier_cumule)
+            worksheet.write(row_num, 0, projet.name.name, cell_format)
+            worksheet.write(row_num, 1, projet.libelle if projet.libelle else "", cell_format)
+            worksheet.write(row_num, 2, projet.marche_initial, cell_format)
+            worksheet.write(row_num, 3, projet.ts, cell_format)
+            worksheet.write(row_num, 4, projet.ca_final, cell_format)
+            worksheet.write(row_num, 5, projet.factures_cumulees, highlight_format)
+            worksheet.write(row_num, 6, projet.od_facture, cell_format)
+            worksheet.write(row_num, 7, projet.non_facture, cell_format)
+            worksheet.write(row_num, 8, projet.trop_facture, cell_format)
+            worksheet.write(row_num, 9, projet.activite_cumulee, cell_format)
+            worksheet.write(row_num, 10, projet.pourcentage_avancement * 100, lowlight_format)
+            worksheet.write(row_num, 11, projet.debours_comptable_cumule, highlight_format)
+            worksheet.write(row_num, 12, projet.oda_d, cell_format)
+            worksheet.write(row_num, 13, projet.ffnp, cell_format)
+            worksheet.write(row_num, 14, projet.stocks, cell_format)
+            worksheet.write(row_num, 15, projet.provisions, cell_format)
+            worksheet.write(row_num, 16, projet.total_debourses, cell_format)
+            worksheet.write(row_num, 17, projet.depenses_cumulees, cell_format)
+            worksheet.write(row_num, 18, projet.debours_previsionnels, cell_format)
+            worksheet.write(row_num, 19, projet.resultat_chantier_cumule, cell_format)
             row_num += 1
 
-        workbook.close()
-        output.seek(0)
-        return output
+        # Ajouter les totaux pour chaque plan
+        worksheet.merge_range(row_num, 0, row_num, 1, f"RESULTAT OGOOUE {plan.name}", total_format)
+        worksheet.write(row_num, 2, sum(projet.marche_initial for projet in projets), total_format)
+        worksheet.write(row_num, 3, sum(projet.ts for projet in projets), total_format)
+        worksheet.write(row_num, 4, sum(projet.ca_final for projet in projets), total_format)
+        worksheet.write(row_num, 5, sum(projet.factures_cumulees for projet in projets), total_format)
+        worksheet.write(row_num, 6, sum(projet.od_facture for projet in projets), total_format)
+        worksheet.write(row_num, 7, sum(projet.non_facture for projet in projets), total_format)
+        worksheet.write(row_num, 8, sum(projet.trop_facture for projet in projets), total_format)
+        worksheet.write(row_num, 9, sum(projet.activite_cumulee for projet in projets), total_format)
+        worksheet.write(row_num, 10, sum(projet.pourcentage_avancement * 100 for projet in projets) / len(projets), total_format)
+        worksheet.write(row_num, 11, sum(projet.debours_comptable_cumule for projet in projets), total_format)
+        worksheet.write(row_num, 12, sum(projet.oda_d for projet in projets), total_format)
+        worksheet.write(row_num, 13, sum(projet.ffnp for projet in projets), total_format)
+        worksheet.write(row_num, 14, sum(projet.stocks for projet in projets), total_format)
+        worksheet.write(row_num, 15, sum(projet.provisions for projet in projets), total_format)
+        worksheet.write(row_num, 16, sum(projet.total_debourses for projet in projets), total_format)
+        worksheet.write(row_num, 17, sum(projet.depenses_cumulees for projet in projets), total_format)
+        worksheet.write(row_num, 18, sum(projet.debours_previsionnels for projet in projets), total_format)
+        worksheet.write(row_num, 19, sum(projet.resultat_chantier_cumule for projet in projets), total_format)
+        row_num += 4  # Ajouter un espace entre les plans
+
+    workbook.close()
+    output.seek(0)
+    return output.getvalue()

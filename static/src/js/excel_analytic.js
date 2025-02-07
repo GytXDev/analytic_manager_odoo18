@@ -10,7 +10,7 @@ export class ExcelAnalytic extends Component {
 
     setup() {
         this.action = useService("action");
-        this.plans = useState([]); // Stocker les plans et projets
+        this.plans = useState([]);
 
         onMounted(async () => {
             try {
@@ -38,6 +38,7 @@ export class ExcelAnalytic extends Component {
                     plan.total_provisions = plan.projets.reduce((sum, p) => sum + (p.provisions || 0), 0);
                     plan.total_total_debourses = plan.projets.reduce((sum, p) => sum + (p.total_debourses || 0), 0);
                     plan.total_depenses_cumulees = plan.projets.reduce((sum, p) => sum + (p.depenses_cumulees || 0), 0);
+                    plan.total_debours_previsionnels = plan.projets.reduce((sum, p) => +(p.debours_previsionnels || 0), 0);
                     plan.total_resultat_chantier_cumule = plan.projets.reduce((sum, p) => sum + (p.resultat_chantier_cumule || 0), 0);
                     plan.moyenne_avancement = parseFloat((plan.projets.reduce((sum, p) => sum + ((p.pourcentage_avancement || 0) * 100), 0) / plan.projets.length).toFixed(2)) || 0;
 
@@ -46,6 +47,7 @@ export class ExcelAnalytic extends Component {
                 }
 
                 this.plans.push(...plans);
+                
             } catch (error) {
                 console.error('Erreur lors de la récupération des plans et projets:', error);
             }

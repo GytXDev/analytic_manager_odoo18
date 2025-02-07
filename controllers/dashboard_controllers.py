@@ -1,6 +1,6 @@
 # analytic_manager/controllers/dashboard_controllers.py
 from odoo import http
-from odoo.http import request
+from odoo.http import request, content_disposition
 
 class DashboardControllers(http.Controller):
 
@@ -71,6 +71,15 @@ class DashboardControllers(http.Controller):
         result = project_model.update_project(id, kwargs)
         return result
     
+    @http.route('/dashboard/update_all_projects', type='json', auth="user", website=True)
+    def update_all_projects(self, **kwargs):
+        """
+        Met à jour les données de tous les projets.
+        """
+        project_model = request.env['analytic.dashboard'].sudo()
+        result = project_model.update_all_projects(kwargs)
+        return result
+    
     @http.route('/dashboard/update_plan', type='json', auth="user", website=True)
     def update_plan(self, id, **kwargs):
         """
@@ -87,12 +96,11 @@ class DashboardControllers(http.Controller):
     @http.route('/dashboard/export_to_excel', type='http', auth="user", website=True)
     def export_to_excel(self):
         """
-        Exporte les données des projets vers un fichier Excel.
+        Génère un fichier Excel avec les données des projets et le renvoie en tant que réponse HTTP.
         """
-        dashboard_model = request.env['analytic.dashboard'].sudo()
-        output = dashboard_model.export_to_excel()
+        analytic_dashboard = request.env['analytic.dashboard'].sudo()
+        output = analytic_dashboard.export_to_excel()
 
-        # Définir le nom du fichier
         filename = 'Projets_Analytique.xlsx'
         headers = [
             ('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
