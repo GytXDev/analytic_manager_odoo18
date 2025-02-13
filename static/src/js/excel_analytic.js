@@ -38,9 +38,19 @@ export class ExcelAnalytic extends Component {
                     plan.total_provisions = plan.projets.reduce((sum, p) => sum + (p.provisions || 0), 0);
                     plan.total_total_debourses = plan.projets.reduce((sum, p) => sum + (p.total_debourses || 0), 0);
                     plan.total_depenses_cumulees = plan.projets.reduce((sum, p) => sum + (p.depenses_cumulees || 0), 0);
-                    plan.total_debours_previsionnels = Math.round(plan.projets.reduce((sum, p) => sum +(p.debours_previsionnels || 0), 0));
+                    plan.total_debours_previsionnels = Math.round(plan.projets.reduce((sum, p) => sum + (p.debours_previsionnels || 0), 0));
                     plan.total_resultat_chantier_cumule = Math.round(plan.projets.reduce((sum, p) => sum + (p.resultat_chantier_cumule || 0), 0));
                     plan.moyenne_avancement = parseFloat((plan.projets.reduce((sum, p) => sum + ((p.pourcentage_avancement || 0) * 100), 0) / plan.projets.length).toFixed(2)) || 0;
+
+                    // Récupérer les données du plan
+                    const planDataResponse = await rpc('/dashboard/get_plan', { plan_name: plan.id });
+                    if (planDataResponse.status === 'success') {
+                        plan.plan_data = planDataResponse.data;
+                        plan.plan = plan.plan_data.plan; // Assigner la valeur du plan
+                        console.log('Données du plan:', plan.plan_data);
+                    } else {
+                        console.error('Erreur lors de la récupération des données du plan:', planDataResponse.message);
+                    }
 
                     // Calcul du pourcentage d'activité par rapport au plan
                     plan.pourcentage_activite_plan = plan.plan ? (plan.total_activite_cumulee / plan.plan) * 100 : 0;
@@ -69,10 +79,15 @@ export class ExcelAnalytic extends Component {
     async savePlanData(plan, fieldName, newValue, oldValue) {
         console.log(`ID du plan: ${plan.id}, Champ modifié: ${fieldName}, Ancienne valeur: ${oldValue}, Nouvelle valeur: ${newValue}`);
         try {
-            await rpc('/dashboard/update_plan', {
+            const response = await rpc('/dashboard/update_plan', {
                 id: plan.id,
-                [fieldName]: newValue,
+                plan: newValue,
             });
+            if (response.status === 'success') {
+                console.log('Plan mis à jour avec succès');
+            } else {
+                console.error('Erreur lors de la mise à jour du plan:', response.message);
+            }
         } catch (error) {
             console.error('Erreur lors de la sauvegarde des données du plan:', error);
         }

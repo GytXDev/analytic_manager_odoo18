@@ -79,11 +79,6 @@ class AnalyticDashboard(models.Model):
         store=False
     )
 
-    plan = fields.Float(
-        string="Plan",
-        help="Objectif financier à atteindre sur une exploitation."
-    )
-
     # Ajout des champs d'écart temporel
     ecart_activite = fields.Float(
         string="Écart Activité (FCFA)", 

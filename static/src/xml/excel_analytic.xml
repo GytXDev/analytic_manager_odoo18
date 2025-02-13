@@ -147,11 +147,11 @@
                                 <td><t t-esc="plan.total_activite_cumulee || 0" /></td>
                                 <td></td>
                             </tr>
-                            <tr>
+                            <!-- <tr>
                                 <td>Activité $annee</td>
                                 <td>amount</td>
                                 <td></td>
-                            </tr>
+                            </tr> -->
                             <tr>
                                 <td class="plan">PLAN</td>
                                 <td class="plan">

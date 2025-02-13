@@ -60,6 +60,20 @@ class DashboardControllers(http.Controller):
         result = plans.get_all_plans()
 
         return {'status': 'success', 'data': result}
+
+    # Route pour obtenir les objectifs financier des plans 
+    @http.route('/dashboard/get_plan', type='json', auth='user', website=True)
+    def dashboard_get_plan(self):
+        """
+        Retourne les données d'un plan spécifique.
+        """
+        plan = request.env['dashboard.plan'].sudo()
+        if plan:
+            result = {'name': plan.name, 'plan': plan.plan}
+            return {'status': 'success', 'data': result}
+        else:
+            return {'status': 'error', 'message': 'Plan non trouvé'} 
+    
     
     # Route pour la mise à jour des données d'un projet
     @http.route('/dashboard/update_project', type='json', auth="user", website=True)
@@ -71,6 +85,19 @@ class DashboardControllers(http.Controller):
         result = project_model.update_project(id, kwargs)
         return result
     
+    # Route pour la mise à jour des données d'un projet
+    @http.route('/dashboard/get_plan', type='json', auth='user', website=True)
+    def dashboard_get_plan(self, plan_name):
+        """
+        Retourne les données d'un plan spécifique.
+        """
+        plan = request.env['dashboard.plan'].sudo().search([('name', '=', plan_name)], limit=1)
+        if plan:
+            result = {'name': plan.name, 'plan': plan.plan}
+            return {'status': 'success', 'data': result}
+        else:
+            return {'status': 'error', 'message': 'Plan non trouvé'}
+    
     @http.route('/dashboard/update_all_projects', type='json', auth="user", website=True)
     def update_all_projects(self, **kwargs):
         """
@@ -81,18 +108,25 @@ class DashboardControllers(http.Controller):
         return result
     
     @http.route('/dashboard/update_plan', type='json', auth="user", website=True)
-    def update_plan(self, id, **kwargs):
+    def update_plan(self, id, plan):
         """
-        Met à jour les données d'un plan spécifique.
+        Crée un enregistrement dans 'dashboard.plan' avec l'ID et le plan (objectif financier) renseigné par l'utilisateur.
         """
-        plan_model = request.env['analytic.dashboard'].sudo()
-        plan = plan_model.browse(id)
-        if plan:
-            plan.write(kwargs)
+        plan_model = request.env['dashboard.plan'].sudo()
+        existing_plan = plan_model.search([('id', '=', id)])
+        if existing_plan:
+            existing_plan.write({'plan': plan})
             return {'status': 'success', 'message': 'Plan mis à jour avec succès'}
         else:
-            return {'status': 'error', 'message': 'Plan non trouvé'}
-    
+            # Vérifier s'il existe déjà un plan avec le même nom pour éviter les doublons
+            duplicate_plan = plan_model.search([('name', '=', id)])
+            if duplicate_plan:
+                return {'status': 'error', 'message': 'Un plan avec le même nom existe déjà'}
+            else:
+                plan_model.create({'name': id, 'plan': plan})
+                return {'status': 'success', 'message': 'Plan créé avec succès'}
+            
+        
     @http.route('/dashboard/export_to_excel', type='http', auth="user", website=True)
     def export_to_excel(self):
         """

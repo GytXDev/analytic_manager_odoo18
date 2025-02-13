@@ -453,7 +453,16 @@ export class AnalyticDashboard extends Component {
         }
 
         // Filtrer les projets avec des valeurs non nulles
-        const filteredProjets = this.state.projetsData.filter(projet => projet.value > 0);
+        let filteredProjets = this.state.projetsData.filter(projet => projet.value !== 0);
+
+        // Si le label sélectionné est "Dépenses Cumulées", convertir les valeurs en positives
+        if (selectedDataLabel === "Dépenses Cumulées") {
+            filteredProjets = filteredProjets.map(projet => ({
+                ...projet,
+                value: Math.abs(projet.value)
+            }));
+        }
+
         if (!filteredProjets.length) {
             noDataMessage.style.display = 'block'; // Afficher le message
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
