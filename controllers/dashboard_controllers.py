@@ -101,7 +101,7 @@ class DashboardControllers(http.Controller):
         analytic_dashboard = request.env['analytic.dashboard'].sudo()
         output = analytic_dashboard.export_to_excel()
 
-        filename = 'Projets_Analytique.xlsx'
+        filename = 'Resultats_Analytique.xlsx'
         headers = [
             ('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
             ('Content-Disposition', content_disposition(filename))

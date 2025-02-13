@@ -82,3 +82,26 @@
 .analytic-manager-excel .hidden {
     display: none;
 }
+
+.analytic-manager-excel .column-selector-btn i {
+    margin-right: 5px;
+}
+
+.analytic-manager-excel .column-selector {
+    background-color: white;
+    border: 1px solid #ddd;
+    padding: 10px;
+    position: absolute;
+    top: 60px;
+    right: 20px;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.analytic-manager-excel .column-selector div {
+    margin-bottom: 5px;
+}
+
+.analytic-manager-excel .hidden {
+    display: none;
+}

@@ -1,5 +1,6 @@
 # analytic_manager\models\analytic_dashboard.py
 from odoo import models, fields, api, _
+from odoo.http import content_disposition, request
 from odoo.exceptions import ValidationError
 from datetime import timedelta
 
@@ -79,19 +80,6 @@ class AnalyticDashboard(models.Model):
     plan = fields.Float(
         string="Plan",
         help="Objectif financier à atteindre sur une exploitation."
-    )
-
-    # Ajout des champs d'écart temporel
-    ecart_activite = fields.Float(
-        string="Écart Activité (FCFA)", 
-        compute='_compute_ecart_activite', 
-        store=False
-    )
-
-    ecart_depenses = fields.Float(
-        string="Écart Dépenses (FCFA)", 
-        compute='_compute_ecart_depenses', 
-        store=False
     )
 
     @api.model
@@ -206,121 +194,30 @@ class AnalyticDashboard(models.Model):
             else:
                 record.pourcentage_avancement = 0.0
 
-    # Ajout des méthodes supplémentaires pour l'analyse des projets
-    def get_all_projets(self, plan_id=None):
-        domain = []
-        if plan_id:
-            domain.append(('plan_id', '=', plan_id))
-        projets = self.search(domain)
-        projets_data = []
-        
-        for projet in projets:
-            projets_data.append({
-                'id_code_project': projet.name.id,
-                'code_projet': projet.name.name,
-                'libelle': projet.libelle,
-                'marche_initial': projet.marche_initial,
-                'ts': projet.ts,
-                'pourcentage_avancement': projet.pourcentage_avancement,
-                'resultat_chantier_cumule': projet.resultat_chantier_cumule,
-                'ca_final': projet.ca_final,
-                'date': projet.date,
-                'plan_id': projet.plan_id.id, 
-                'trop_facture': projet.trop_facture,
-                'factures_cumulees': projet.factures_cumulees,
-                'depenses_cumulees': projet.depenses_cumulees,  
-                'activite_cumulee': projet.activite_cumulee,  
-                'non_facture': projet.non_facture,
-                'od_facture': projet.od_facture,
-                'oda_d': projet.oda_d,
-                'ffnp': projet.ffnp,
-                'stocks': projet.stocks,
-                'provisions': projet.provisions,
-                'debours_previsionnels': projet.debours_previsionnels,
-                'debours_comptable_cumule': projet.debours_comptable_cumule,
-            })
-        
-        return projets_data
 
-
-    @api.model
-    def get_all_plans(self):
+    @api.depends('marche_initial', 'ts', 'factures_cumulees', 'oda_d', 'debours_previsionnels')
+    def _compute_trop_facture(self):
         """
-        Retourne tous les plans analytiques disponibles.
+        Calcule la différence entre les dépenses prévisionnelles renseignées (debours_previsionnels) 
+        et les dépenses facturées (factures_cumulees + oda_d).
+        Si la différence est positive, elle est enregistrée dans 'trop_facture'.
+        Avec conditions inspirées de la formule Excel pour éviter des calculs dans certains cas.
         """
-        plans = self.env['account.analytic.plan'].search([])
-        plans_data = []
+        for record in self:
+            # Si L17 + M17 == 0, ou si E17 == 0, ou si A17 est vide, ne rien faire
+            if (record.l or 0) + (record.m or 0) == 0 or record.e == 0 or not record.a:
+                record.trop_facture = 0.0
+                continue
+            
+            # Utilisation de debours_previsionnels comme renseigné par l'utilisateur
+            debours_previsionnels = record.debours_previsionnels or 0
 
-        print("Nombre de plans trouvés :", len(plans))
+            # Calcul des dépenses facturées (factures_cumulees + oda_d)
+            total_debours_reels = (record.factures_cumulees or 0) + (record.oda_d or 0)
 
-        for plan in plans:
-            plans_data.append({
-                'id': plan.id,
-                'name': plan.name,
-            })
-            print("Plan ID:", plan.id, ", Nom:", plan.name)
+            # Calcul du trop facturé (dépenses prévisionnelles - dépenses facturées)
+            if debours_previsionnels > total_debours_reels:
+                record.trop_facture = round(debours_previsionnels - total_debours_reels, 2)
+            else:
+                record.trop_facture = 0.0
 
-        # Retourne les données dans un format structuré
-        return {
-            'count': len(plans),
-            'plans': plans_data,
-        }
-
-
-    @api.model
-    def get_resultat_chantier_total(self, start_date=None, end_date=None):
-        # Logique pour calculer le résultat chantier total selon les dates
-        domain = []
-        if start_date:
-            domain.append(('date', '>=', start_date))
-        if end_date:
-            domain.append(('date', '<=', end_date))
-
-        total = sum(self.search(domain).mapped('resultat_chantier_cumule'))
-        return {'resultat_chantier_total': total}
-    
-
-    @api.model
-    def get_progression_moyenne(self, start_date=None, end_date=None):
-        # Logique pour calculer la progression moyenne selon les dates
-        domain = []
-        if start_date:
-            domain.append(('date', '>=', start_date))
-        if end_date:
-            domain.append(('date', '<=', end_date))
-
-        progression = self.search(domain).mapped('pourcentage_avancement')
-        if progression:
-            return {'progression_moyenne': sum(progression) / len(progression)}
-        return {'progression_moyenne': 0}
-    
-    def get_donnees_projets_independantes(self, plan_id=None):
-        projets = self.get_all_projets(plan_id) 
-        projets_donnees = [] 
-
-        for projet in projets:
-            projet_donnees = {
-                'id_code_project': projet['id_code_project'],
-                'code_projet': projet['code_projet'],
-                'libelle': projet['libelle'] or 'Non renseigné',  # Afficher "Non renseigné" si le libellé est False
-                'marche_initial': projet['marche_initial'] or 0,
-                'ts': projet['ts'] or 0,
-                'pourcentage_avancement': projet['pourcentage_avancement'] or 0,
-                'resultat_chantier_cumule': projet['resultat_chantier_cumule'] or 0,
-                'ca_final': projet['ca_final'] or 0,
-                'date': projet['date'],
-                'plan_id': projet['plan_id'],
-                'trop_facture': projet['trop_facture'],
-                'factures_cumulees': projet['factures_cumulees'] or 0, 
-                'depenses_cumulees': projet['depenses_cumulees'] or 0,
-                'activite_cumulee': projet['activite_cumulee'] or 0,
-                'od_facture': projet['od_facture'],
-                'non_facture': projet['non_facture'] or 0,
-                'oda_d': projet['oda_d'] or 0,
-                'ffnp': projet['ffnp'] or 0,
-                'stocks': projet['stocks'] or 0,
-                'provisions': projet['provisions'] or 0,
-                'debours_previsionnels': projet['debours_previsionnels'] or 0,
-                'debours_comptable_cumule': projet['debours_comptable_cumule'] or 0,
-            }
-            projets_donnees.append(projet_donnees)  

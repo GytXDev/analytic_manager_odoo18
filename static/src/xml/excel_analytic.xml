@@ -67,13 +67,13 @@
                                     </span>
                                     <input t-if="projet.editing_non_facture" type="number" t-model="projet.non_facture" t-on-blur="() => { projet.editing_non_facture = false; saveProjectData(projet, 'non_facture', projet.non_facture); }" />
                                 </td>
-                                <td>
+                               <td>
                                     <span t-if="!projet.editing_trop_facture" t-on-click="() => projet.editing_trop_facture = true">
-                                        <t t-esc="projet.trop_facture || 0" />
+                                        <t t-esc="(projet.trop_facture || 0).toFixed(0)" />
                                     </span>
                                     <input t-if="projet.editing_trop_facture" type="number" t-model="projet.trop_facture" t-on-blur="() => { projet.editing_trop_facture = false; saveProjectData(projet, 'trop_facture', projet.trop_facture); }" />
                                 </td>
-                                <td><t t-esc="projet.activite_cumulee || 0" /></td>
+                                <td><t t-esc="(projet.activite_cumulee || 0).toFixed(0)" /></td>
                                 <td class="lowlight"><t t-esc="((projet.pourcentage_avancement || 0) * 100).toFixed(0)" />%</td>
                                 <td class="highlight"><t t-esc="projet.debours_comptable_cumule || 0" /></td>
                                 <td>
@@ -102,7 +102,12 @@
                                 </td>
                                 <td><t t-esc="projet.total_debourses || 0" /></td>
                                 <td><t t-esc="projet.depenses_cumulees || 0" /></td>
-                                <td><t t-esc="projet.debours_previsionnels || 0"/></td>
+                                <td>
+                                    <span t-if="!projet.editing_debours_previsionnels" t-on-click="() => projet.editing_debours_previsionnels = true">
+                                        <t t-esc="projet.debours_previsionnels || 0" />
+                                    </span>
+                                    <input t-if="projet.editing_debours_previsionnels" type="number" t-model="projet.debours_previsionnels" t-on-blur="() => { projet.editing_debours_previsionnels = false; saveProjectData(projet, 'debours_previsionnels', projet.debours_previsionnels); }" />
+                                </td>
                                 <td><t t-esc="projet.resultat_chantier_cumule || 0" /></td>
                             </tr>
                         </t>

@@ -153,8 +153,8 @@ export class AnalyticDashboard extends Component {
             end: thisMonthEnd.toISOString().split('T')[0]
         };
 
-        periodSelector.value = 'this-month'; // Sélection par défaut
-        periodLabel.textContent = "du mois en cours";
+        periodSelector.value = 'this-year'; // Sélection par défaut
+        periodLabel.textContent = "de l'année en cours";
 
         // Chargement initial des données
         this.loadProjets(defaultDateFilter);
@@ -177,7 +177,7 @@ export class AnalyticDashboard extends Component {
                         periodLabel.textContent = "du mois précédent";
                         break;
                     case 'this-year':
-                        periodLabel.textContent = "de cette année";
+                        periodLabel.textContent = "de l'année";
                         break;
                 }
 
@@ -197,7 +197,10 @@ export class AnalyticDashboard extends Component {
         const startDate = document.getElementById('start-date')?.value;
         const endDate = document.getElementById('end-date')?.value;
         const today = new Date();
-        let dateFilter = {};
+        const dateFilter = {
+            start: currentYearStart.toISOString().split('T')[0],
+            end: currentYearEnd.toISOString().split('T')[0]
+        };
 
         if (periodSelector.value === 'last-month') {
             const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();

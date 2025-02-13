@@ -42,11 +42,11 @@ class AnalyticDashboard(models.Model):
     ts = fields.Float("Travaux Supplémentaires")
     factures_cumulees = fields.Float("Factures Cumulées", compute='_compute_factures_cumulees')
     non_facture = fields.Float("Non Facturé")
-    trop_facture = fields.Float("Trop Facturé")
-    depenses_cumulees = fields.Float(string="Dépenses Cumulées", compute='_compute_depenses_cumulees', store=False)
+    depenses_cumulees = fields.Float(string="Dépenses Cumulées", compute='_compute_depenses_cumulees')
     debours_previsionnels = fields.Float("Débours Prévisionnels")
-    debours_comptable_cumule = fields.Float("Débours comptable Cumulé")
-    total_debourses = fields.Float("Total Déboursés")
+    debours_comptable_cumule = fields.Float("Débours comptable Cumulé", compute='_compute_debours_comptable_cumule')
+    total_debourses = fields.Float("Total Déboursés", compute='_compute_total_debourses')
+    trop_facture = fields.Float("Trop Facturé", compute='_compute_trop_facture')
   
     # Champs supplémentaires à renseigner 
     od_facture = fields.Float("Opérations Diverses Facturées")
@@ -153,52 +153,48 @@ class AnalyticDashboard(models.Model):
 
     # Calcule le total des factures fournisseurs
     @api.depends('name')
-    def _compute_factures_cumulees(self):
-        """
-        Calcule le total hors taxes des factures fournisseurs,
-        en soustrayant les montants des avoirs (factures d'avoir).
-        """
+    def _compute_debours_comptable_cumule(self):
         for record in self:
             if record.name:
-                # Recherche des factures fournisseurs et des avoirs liés au compte analytique
-                factures = self.env['account.move.line'].search([
+                factures_fournisseurs = self.env['account.move.line'].search([
                     ('analytic_distribution', 'in', [record.name.id]),
                     ('move_id.move_type', 'in', ['in_invoice', 'in_refund']),
                     ('move_id.state', '=', 'posted')
                 ])
+                move_ids = factures_fournisseurs.mapped('move_id')
 
-                # Élimination des doublons en regroupant par facture
-                move_ids = factures.mapped('move_id')
-
-                # Calcul des totaux pour les factures et les avoirs
-                total_factures = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'in_invoice')
-                total_avoirs = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'in_refund')
-
-                # Calcul final : Factures - Avoirs
-                record.factures_cumulees = total_factures + total_avoirs
+                total_factures_fournisseurs = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'in_invoice')
+                total_avoirs_fournisseurs = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'in_refund')
+                record.debours_comptable_cumule = total_factures_fournisseurs - total_avoirs_fournisseurs
             else:
-                record.factures_cumulees = 0.0
-
-                
+                record.debours_comptable_cumule = 0.0
+        
+   
     # Calcule les dépenses cumulées
-    @api.depends('factures_cumulees', 'oda_d', 'ffnp', 'stocks', 'provisions')
+    @api.depends('debours_comptable_cumule', 'oda_d', 'ffnp', 'stocks', 'provisions')
     def _compute_depenses_cumulees(self):
         """
-        Dépenses cumulées = Factures Cumulées (fournisseurs) + ODA D. + Factures Fournisseurs Non Parvenues 
+        Dépenses cumulées = Deb Compta Cumulées (fournisseurs) + ODA D. + Factures Fournisseurs Non Parvenues 
         + Stocks + Provisions
         """
         for record in self:
             record.depenses_cumulees = round(
-                (record.factures_cumulees or 0) + 
+                (record.debours_comptable_cumule or 0) + 
                 (record.oda_d or 0) + 
                 (record.ffnp or 0) + 
                 (record.stocks or 0) + 
                 (record.provisions or 0), 2
             )
 
-    # Calcule l'activité cumulée
-    @api.depends('name', 'od_facture', 'non_facture', 'trop_facture')
-    def _compute_activite_cumulee(self):
+    # Calcule le total des déboursés
+    @api.depends('depenses_cumulees')
+    def _compute_total_debourses(self):
+        for record in self:
+            record.total_debourses = record.depenses_cumulees
+
+    # Calcule le total des factures clients
+    @api.depends('name')
+    def _compute_factures_cumulees(self):
         """
         Calcule le total hors taxes des factures clients,
         en soustrayant les montants des factures d'avoir (out_refund).
@@ -220,13 +216,36 @@ class AnalyticDashboard(models.Model):
                 total_avoirs = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'out_refund')
 
                 # Calcul final : Factures - Avoirs + ajustements
-                record.activite_cumulee = (total_factures + total_avoirs) + \
-                                        (record.od_facture or 0) + \
-                                        (record.non_facture or 0) + \
-                                        (record.trop_facture or 0)
+                record.factures_cumulees = (total_factures + total_avoirs) 
             else:
-                record.activite_cumulee = 0.0
+                record.factures_cumulees = 0.0
 
+    # Calcule l'activité cumulée
+    @api.depends('factures_cumulees', 'od_facture', 'non_facture', 'trop_facture')
+    def _compute_activite_cumulee(self):
+        for record in self:
+            record.activite_cumulee = round(
+                (record.factures_cumulees or 0) + 
+                (record.od_facture or 0) + 
+                (record.non_facture or 0) + 
+                (record.trop_facture or 0), 2
+            )
+
+    @api.depends('debours_comptable_cumule', 'oda_d', 'ca_final', 'total_debourses', 'depenses_cumulees', 'factures_cumulees', 'od_facture')
+    def _compute_trop_facture(self):
+        for record in self:
+            if record.debours_previsionnels == 0 or record.total_debourses == 0 or record.factures_cumulees == 0:
+                record.trop_facture = 0.0
+            else:
+                total_debourses_previsionnels = record.total_debourses - record.debours_previsionnels
+                if total_debourses_previsionnels != 0:
+                    trop_facture_value = (record.ca_final * (record.total_debourses / total_debourses_previsionnels)) - record.factures_cumulees - record.od_facture
+                    if trop_facture_value > 0:
+                        record.trop_facture = 0.0
+                    else:
+                        record.trop_facture = trop_facture_value
+                else:
+                    record.trop_facture = 0.0
 
 
     @api.depends('activite_cumulee', 'depenses_cumulees')
@@ -243,7 +262,7 @@ class AnalyticDashboard(models.Model):
     @api.depends('activite_cumulee', 'ca_final')
     def _compute_pourcentage_avancement(self):
         for record in self:
-            if record.ca_final:
+            if record.ca_final and record.activite_cumulee:
                 # Calcul du pourcentage avec 2 décimales
                 record.pourcentage_avancement = round((record.activite_cumulee or 0) / record.ca_final, 2)
             else:
@@ -308,6 +327,7 @@ class AnalyticDashboard(models.Model):
                 'ffnp': projet.ffnp,
                 'stocks': projet.stocks,
                 'provisions': projet.provisions,
+                'total_debourses': projet.total_debourses,
                 'debours_previsionnels': projet.debours_previsionnels,
                 'debours_comptable_cumule': projet.debours_comptable_cumule,
             })
@@ -427,6 +447,7 @@ class AnalyticDashboard(models.Model):
                 'ffnp': projet['ffnp'] or 0,
                 'stocks': projet['stocks'] or 0,
                 'provisions': projet['provisions'] or 0,
+                'total_debourses': projet['total_debourses'] or 0,
                 'debours_previsionnels': projet['debours_previsionnels'] or 0,
                 'debours_comptable_cumule': projet['debours_comptable_cumule'] or 0,
             }
@@ -434,116 +455,116 @@ class AnalyticDashboard(models.Model):
         
         return projets_donnees
     
-def export_to_excel(self):
-    """
-    Génère un fichier Excel avec les données des projets, regroupés par plan.
-    """
-    output = io.BytesIO()
-    workbook = xlsxwriter.Workbook(output, {'in_memory': True})
-    worksheet = workbook.add_worksheet()
+    def export_to_excel(self):
+        """
+        Génère un fichier Excel avec les données des projets, regroupés par plan.
+        """
+        output = io.BytesIO()
+        workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+        worksheet = workbook.add_worksheet()
 
-    # Définir les styles
-    header_format = workbook.add_format({
-        'bold': True,
-        'bg_color': '#138d75',
-        'font_color': 'white',
-        'border': 1,
-        'align': 'center',
-        'valign': 'vcenter'
-    })
-    cell_format = workbook.add_format({
-        'border': 1,
-        'align': 'center',
-        'valign': 'vcenter'
-    })
-    highlight_format = workbook.add_format({
-        'bg_color': 'yellow',
-        'border': 1,
-        'align': 'center',
-        'valign': 'vcenter'
-    })
-    lowlight_format = workbook.add_format({
-        'bg_color': '#5dade2',
-        'border': 1,
-        'align': 'center',
-        'valign': 'vcenter'
-    })
-    total_format = workbook.add_format({
-        'bold': True,
-        'bg_color': '#f9f9f9',
-        'border': 1,
-        'align': 'center',
-        'valign': 'vcenter'
-    })
+        # Définir les styles
+        header_format = workbook.add_format({
+            'bold': True,
+            'bg_color': '#138d75',
+            'font_color': 'white',
+            'border': 1,
+            'align': 'center',
+            'valign': 'vcenter'
+        })
+        cell_format = workbook.add_format({
+            'border': 1,
+            'align': 'center',
+            'valign': 'vcenter'
+        })
+        highlight_format = workbook.add_format({
+            'bg_color': 'yellow',
+            'border': 1,
+            'align': 'center',
+            'valign': 'vcenter'
+        })
+        lowlight_format = workbook.add_format({
+            'bg_color': '#5dade2',
+            'border': 1,
+            'align': 'center',
+            'valign': 'vcenter'
+        })
+        total_format = workbook.add_format({
+            'bold': True,
+            'bg_color': '#f9f9f9',
+            'border': 1,
+            'align': 'center',
+            'valign': 'vcenter'
+        })
 
-    # Définir les en-têtes
-    headers = [
-        'Code Projet', 'Libellé', 'Marché Initial', 'TS', 'CA Final', 'Fact Comptable Cumulées',
-        'OD Facture', 'Non Facturé', 'Trop Facturé', 'Activité Cumulée', '%avt',
-        'Débours Comptable Cumulé', 'ODA D', 'FFNP', 'Stocks', 'Provisions',
-        'Total Déboursés', 'Dépenses Cumulées', 'Débours Prévisionnels', 'Resultat Chantier'
-    ]
+        # Définir les en-têtes
+        headers = [
+            'Code Projet', 'Libellé', 'Marché Initial', 'TS', 'CA Final', 'Fact Comptable Cumulées',
+            'OD Facture', 'Non Facturé', 'Trop Facturé', 'Activité Cumulée', '%avt',
+            'Débours Comptable Cumulé', 'ODA D', 'FFNP', 'Stocks', 'Provisions',
+            'Total Déboursés', 'Dépenses Cumulées', 'Débours Prévisionnels', 'Resultat Chantier'
+        ]
 
-    # Récupérer les projets et les regrouper par plan
-    plans = self.env['account.analytic.plan'].search([])
-    row_num = 0
+        # Récupérer les projets et les regrouper par plan
+        plans = self.env['account.analytic.plan'].search([])
+        row_num = 0
 
-    for plan in plans:
-        # Ajouter un en-tête pour chaque plan
-        worksheet.merge_range(row_num, 0, row_num, len(headers) - 1, f"Exploitation: {plan.name}", total_format)
-        row_num += 2  # Ajouter un espace après l'en-tête du plan
+        for plan in plans:
+            # Ajouter un en-tête pour chaque plan
+            worksheet.merge_range(row_num, 0, row_num, len(headers) - 1, f"Exploitation: {plan.name}", total_format)
+            row_num += 2  # Ajouter un espace après l'en-tête du plan
 
-        # Ajouter les en-têtes des colonnes
-        for col_num, header in enumerate(headers):
-            worksheet.write(row_num, col_num, header, header_format)
-        row_num += 1
-
-        projets = self.search([('plan_id', '=', plan.id)])
-        for projet in projets:
-            worksheet.write(row_num, 0, projet.name.name, cell_format)
-            worksheet.write(row_num, 1, projet.libelle if projet.libelle else "", cell_format)
-            worksheet.write(row_num, 2, projet.marche_initial, cell_format)
-            worksheet.write(row_num, 3, projet.ts, cell_format)
-            worksheet.write(row_num, 4, projet.ca_final, cell_format)
-            worksheet.write(row_num, 5, projet.factures_cumulees, highlight_format)
-            worksheet.write(row_num, 6, projet.od_facture, cell_format)
-            worksheet.write(row_num, 7, projet.non_facture, cell_format)
-            worksheet.write(row_num, 8, projet.trop_facture, cell_format)
-            worksheet.write(row_num, 9, projet.activite_cumulee, cell_format)
-            worksheet.write(row_num, 10, projet.pourcentage_avancement * 100, lowlight_format)
-            worksheet.write(row_num, 11, projet.debours_comptable_cumule, highlight_format)
-            worksheet.write(row_num, 12, projet.oda_d, cell_format)
-            worksheet.write(row_num, 13, projet.ffnp, cell_format)
-            worksheet.write(row_num, 14, projet.stocks, cell_format)
-            worksheet.write(row_num, 15, projet.provisions, cell_format)
-            worksheet.write(row_num, 16, projet.total_debourses, cell_format)
-            worksheet.write(row_num, 17, projet.depenses_cumulees, cell_format)
-            worksheet.write(row_num, 18, projet.debours_previsionnels, cell_format)
-            worksheet.write(row_num, 19, projet.resultat_chantier_cumule, cell_format)
+            # Ajouter les en-têtes des colonnes
+            for col_num, header in enumerate(headers):
+                worksheet.write(row_num, col_num, header, header_format)
             row_num += 1
 
-        # Ajouter les totaux pour chaque plan
-        worksheet.merge_range(row_num, 0, row_num, 1, f"RESULTAT OGOOUE {plan.name}", total_format)
-        worksheet.write(row_num, 2, sum(projet.marche_initial for projet in projets), total_format)
-        worksheet.write(row_num, 3, sum(projet.ts for projet in projets), total_format)
-        worksheet.write(row_num, 4, sum(projet.ca_final for projet in projets), total_format)
-        worksheet.write(row_num, 5, sum(projet.factures_cumulees for projet in projets), total_format)
-        worksheet.write(row_num, 6, sum(projet.od_facture for projet in projets), total_format)
-        worksheet.write(row_num, 7, sum(projet.non_facture for projet in projets), total_format)
-        worksheet.write(row_num, 8, sum(projet.trop_facture for projet in projets), total_format)
-        worksheet.write(row_num, 9, sum(projet.activite_cumulee for projet in projets), total_format)
-        worksheet.write(row_num, 10, sum(projet.pourcentage_avancement * 100 for projet in projets) / len(projets), total_format)
-        worksheet.write(row_num, 11, sum(projet.debours_comptable_cumule for projet in projets), total_format)
-        worksheet.write(row_num, 12, sum(projet.oda_d for projet in projets), total_format)
-        worksheet.write(row_num, 13, sum(projet.ffnp for projet in projets), total_format)
-        worksheet.write(row_num, 14, sum(projet.stocks for projet in projets), total_format)
-        worksheet.write(row_num, 15, sum(projet.provisions for projet in projets), total_format)
-        worksheet.write(row_num, 16, sum(projet.total_debourses for projet in projets), total_format)
-        worksheet.write(row_num, 17, sum(projet.depenses_cumulees for projet in projets), total_format)
-        worksheet.write(row_num, 18, sum(projet.debours_previsionnels for projet in projets), total_format)
-        worksheet.write(row_num, 19, sum(projet.resultat_chantier_cumule for projet in projets), total_format)
-        row_num += 4  # Ajouter un espace entre les plans
+            projets = self.search([('plan_id', '=', plan.id)])
+            for projet in projets:
+                worksheet.write(row_num, 0, projet.name.name, cell_format)
+                worksheet.write(row_num, 1, projet.libelle if projet.libelle else "", cell_format)
+                worksheet.write(row_num, 2, projet.marche_initial, cell_format)
+                worksheet.write(row_num, 3, projet.ts, cell_format)
+                worksheet.write(row_num, 4, projet.ca_final, cell_format)
+                worksheet.write(row_num, 5, projet.factures_cumulees, highlight_format)
+                worksheet.write(row_num, 6, projet.od_facture, cell_format)
+                worksheet.write(row_num, 7, projet.non_facture, cell_format)
+                worksheet.write(row_num, 8, projet.trop_facture, cell_format)
+                worksheet.write(row_num, 9, projet.activite_cumulee, cell_format)
+                worksheet.write(row_num, 10, projet.pourcentage_avancement * 100, lowlight_format)
+                worksheet.write(row_num, 11, projet.debours_comptable_cumule, highlight_format)
+                worksheet.write(row_num, 12, projet.oda_d, cell_format)
+                worksheet.write(row_num, 13, projet.ffnp, cell_format)
+                worksheet.write(row_num, 14, projet.stocks, cell_format)
+                worksheet.write(row_num, 15, projet.provisions, cell_format)
+                worksheet.write(row_num, 16, projet.total_debourses, cell_format)
+                worksheet.write(row_num, 17, projet.depenses_cumulees, cell_format)
+                worksheet.write(row_num, 18, projet.debours_previsionnels, cell_format)
+                worksheet.write(row_num, 19, projet.resultat_chantier_cumule, cell_format)
+                row_num += 1
 
-    workbook.close()
-    output.seek(0)
-    return output.getvalue()
+            # Ajouter les totaux pour chaque plan
+            worksheet.merge_range(row_num, 0, row_num, 1, f"RESULTAT OGOOUE {plan.name}", total_format)
+            worksheet.write(row_num, 2, sum(projet.marche_initial for projet in projets), total_format)
+            worksheet.write(row_num, 3, sum(projet.ts for projet in projets), total_format)
+            worksheet.write(row_num, 4, sum(projet.ca_final for projet in projets), total_format)
+            worksheet.write(row_num, 5, sum(projet.factures_cumulees for projet in projets), total_format)
+            worksheet.write(row_num, 6, sum(projet.od_facture for projet in projets), total_format)
+            worksheet.write(row_num, 7, sum(projet.non_facture for projet in projets), total_format)
+            worksheet.write(row_num, 8, sum(projet.trop_facture for projet in projets), total_format)
+            worksheet.write(row_num, 9, sum(projet.activite_cumulee for projet in projets), total_format)
+            worksheet.write(row_num, 10, sum(projet.pourcentage_avancement * 100 for projet in projets) / len(projets), total_format)
+            worksheet.write(row_num, 11, sum(projet.debours_comptable_cumule for projet in projets), total_format)
+            worksheet.write(row_num, 12, sum(projet.oda_d for projet in projets), total_format)
+            worksheet.write(row_num, 13, sum(projet.ffnp for projet in projets), total_format)
+            worksheet.write(row_num, 14, sum(projet.stocks for projet in projets), total_format)
+            worksheet.write(row_num, 15, sum(projet.provisions for projet in projets), total_format)
+            worksheet.write(row_num, 16, sum(projet.total_debourses for projet in projets), total_format)
+            worksheet.write(row_num, 17, sum(projet.depenses_cumulees for projet in projets), total_format)
+            worksheet.write(row_num, 18, sum(projet.debours_previsionnels for projet in projets), total_format)
+            worksheet.write(row_num, 19, sum(projet.resultat_chantier_cumule for projet in projets), total_format)
+            row_num += 4  # Ajoute un espace entre les plans
+
+        workbook.close()
+        output.seek(0)
+        return output.getvalue()

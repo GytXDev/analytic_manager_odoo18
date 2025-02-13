@@ -23,14 +23,14 @@ export class ExcelAnalytic extends Component {
                     plan.projets = projetsResponse;
 
                     // Calcul des totaux pour le footer
-                    plan.total_marche_initial = plan.projets.reduce((sum, p) => sum + (p.marche_initial || 0), 0);
-                    plan.total_ts = plan.projets.reduce((sum, p) => sum + (p.ts || 0), 0);
-                    plan.total_ca_final = plan.projets.reduce((sum, p) => sum + (p.ca_final || 0), 0);
-                    plan.total_factures_cumulees = plan.projets.reduce((sum, p) => sum + (p.factures_cumulees || 0), 0);
+                    plan.total_marche_initial = Math.round(plan.projets.reduce((sum, p) => sum + (p.marche_initial || 0), 0));
+                    plan.total_ts = Math.round(plan.projets.reduce((sum, p) => sum + (p.ts || 0), 0));
+                    plan.total_ca_final = Math.round(plan.projets.reduce((sum, p) => sum + (p.ca_final || 0), 0));
+                    plan.total_factures_cumulees = Math.round(plan.projets.reduce((sum, p) => sum + (p.factures_cumulees || 0), 0));
                     plan.total_od_facture = plan.projets.reduce((sum, p) => sum + (p.od_facture || 0), 0);
                     plan.total_non_facture = plan.projets.reduce((sum, p) => sum + (p.non_facture || 0), 0);
-                    plan.total_trop_facture = plan.projets.reduce((sum, p) => sum + (p.trop_facture || 0), 0);
-                    plan.total_activite_cumulee = plan.projets.reduce((sum, p) => sum + (p.activite_cumulee || 0), 0);
+                    plan.total_trop_facture = Math.round(plan.projets.reduce((sum, p) => sum + (p.trop_facture || 0), 0));
+                    plan.total_activite_cumulee = Math.round(plan.projets.reduce((sum, p) => sum + (p.activite_cumulee || 0), 0));
                     plan.total_debours_comptable_cumule = plan.projets.reduce((sum, p) => sum + (p.debours_comptable_cumule || 0), 0);
                     plan.total_oda_d = plan.projets.reduce((sum, p) => sum + (p.oda_d || 0), 0);
                     plan.total_ffnp = plan.projets.reduce((sum, p) => sum + (p.ffnp || 0), 0);
@@ -38,8 +38,8 @@ export class ExcelAnalytic extends Component {
                     plan.total_provisions = plan.projets.reduce((sum, p) => sum + (p.provisions || 0), 0);
                     plan.total_total_debourses = plan.projets.reduce((sum, p) => sum + (p.total_debourses || 0), 0);
                     plan.total_depenses_cumulees = plan.projets.reduce((sum, p) => sum + (p.depenses_cumulees || 0), 0);
-                    plan.total_debours_previsionnels = plan.projets.reduce((sum, p) => +(p.debours_previsionnels || 0), 0);
-                    plan.total_resultat_chantier_cumule = plan.projets.reduce((sum, p) => sum + (p.resultat_chantier_cumule || 0), 0);
+                    plan.total_debours_previsionnels = Math.round(plan.projets.reduce((sum, p) => sum +(p.debours_previsionnels || 0), 0));
+                    plan.total_resultat_chantier_cumule = Math.round(plan.projets.reduce((sum, p) => sum + (p.resultat_chantier_cumule || 0), 0));
                     plan.moyenne_avancement = parseFloat((plan.projets.reduce((sum, p) => sum + ((p.pourcentage_avancement || 0) * 100), 0) / plan.projets.length).toFixed(2)) || 0;
 
                     // Calcul du pourcentage d'activité par rapport au plan
@@ -47,7 +47,7 @@ export class ExcelAnalytic extends Component {
                 }
 
                 this.plans.push(...plans);
-                
+
             } catch (error) {
                 console.error('Erreur lors de la récupération des plans et projets:', error);
             }

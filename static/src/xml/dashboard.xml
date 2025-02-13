@@ -45,7 +45,7 @@
                     <div class="col-lg-3 col-md-6 col-sm-12">
                         <div class="card"> 
                             <div class="card-header">
-                                <h6>Résultat chantier <span id="period-label">du mois en cours</span></h6>
+                                <h6>Résultat chantier <span id="period-label">de l'année en cours</span></h6>
                             </div>
                             <div class="card-body">
                                 <p><t t-esc="state.resultatChantierTotal" /> CFA</p>

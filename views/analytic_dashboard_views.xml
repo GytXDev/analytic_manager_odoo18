@@ -34,7 +34,7 @@
                                             <td><label for="ts" string="TS"/></td>
                                             <td><label for="od_facture" string="OD Facture"/></td>
                                             <td><label for="non_facture" string="Non Facturé"/></td>
-                                            <td><label for="trop_facture" string="Trop Facturé"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="trop_facture" string="Trop Facturé"/></td>
                                             <td><label for="debours_previsionnels" string="Débours Prévisionnels"/></td>
                                         </tr>
                                         <tr>
@@ -42,7 +42,7 @@
                                             <td><field name="ts"/></td>
                                             <td><field name="od_facture"/></td>
                                             <td><field name="non_facture"/></td>
-                                            <td><field name="trop_facture"/></td>
+                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="trop_facture"/></td>
                                             <td><field name="debours_previsionnels"/></td>
                                         </tr>
                                     </table>
