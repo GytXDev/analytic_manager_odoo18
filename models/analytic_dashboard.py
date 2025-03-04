@@ -74,7 +74,7 @@ class AnalyticDashboard(models.Model):
     )
 
     resultat_chantier_cumule = fields.Float(
-        string="Résultat Chantier Cumulé (FCFA)", 
+        string="Résultat Chantier Cumulé", 
         compute='_compute_resultat_chantier_cumule', 
         store=False
     )
@@ -86,7 +86,7 @@ class AnalyticDashboard(models.Model):
         store=False
     )
 
-    ecart_depenses = fields.Float(
+    ecart_depenses = fields.Float( 
         string="Écart Dépenses (FCFA)", 
         compute='_compute_ecart_depenses', 
         store=False
@@ -263,35 +263,6 @@ class AnalyticDashboard(models.Model):
             else:
                 record.pourcentage_avancement = 0.0
 
-     # Calcule l'écart d'activité par rapport au mois précédent
-    @api.depends('name', 'activite_cumulee')
-    def _compute_ecart_activite(self):
-        for record in self:
-            previous_month_date = fields.Date.today() - timedelta(days=30)
-            previous_period = self.env['analytic.dashboard'].search([
-                ('name', '=', record.name.id),
-                ('date', '=', previous_month_date),
-            ], limit=1)
-            if previous_period:
-                record.ecart_activite = round(record.activite_cumulee - previous_period.activite_cumulee, 2)
-            else:
-                record.ecart_activite = 0.0
-
-    # Calcule l'écart de dépenses par rapport au mois précédent
-    @api.depends('name', 'depenses_cumulees')
-    def _compute_ecart_depenses(self):
-        for record in self:
-            previous_month_date = fields.Date.today() - timedelta(days=30)
-            previous_period = self.env['analytic.dashboard'].search([
-                ('name', '=', record.name.id),
-                ('date', '=', previous_month_date),
-            ], limit=1)
-            if previous_period:
-                record.ecart_depenses = round(record.depenses_cumulees - previous_period.depenses_cumulees, 2)
-            else:
-                record.ecart_depenses = 0.0
-
-    
     # Ajout des méthodes supplémentaires pour l'analyse des projets
     def get_all_projets(self, plan_id=None):
         domain = []
@@ -330,22 +301,46 @@ class AnalyticDashboard(models.Model):
         return projets_data
 
 
+    def get_totals_for_plan(self, plan_id):
+        """
+        Retourne les valeurs totales de resultat_chantier, activite_cumulee, depenses_cumulees et factures_cumulees pour un plan spécifique.
+        """
+        projets = self.search([('plan_id', '=', plan_id)])
+        resultat_chantier_cumule = sum(projet.resultat_chantier_cumule for projet in projets)
+        activite_cumulee = sum(projet.activite_cumulee for projet in projets)
+        depenses_cumulees = sum(projet.depenses_cumulees for projet in projets)
+        factures_cumulees = sum(projet.factures_cumulees for projet in projets)
+
+        return {
+            'resultat_chantier_cumule': resultat_chantier_cumule,
+            'activite_cumulee': activite_cumulee,
+            'depenses_cumulees': depenses_cumulees,
+            'factures_cumulees': factures_cumulees,
+        }
+
     @api.model
     def get_all_plans(self):
         """
-        Retourne tous les plans analytiques disponibles.
+        Retourne uniquement les sous-plans analytiques (ceux dont parent_id n'est pas False)
+        avec les totaux calculés.
         """
-        plans = self.env['account.analytic.plan'].search([])
+        # On récupère uniquement les sous-plans (plans qui ont un parent)
+        plans = self.env['account.analytic.plan'].search([('parent_id', '!=', False)])
         plans_data = []
 
         print("Nombre de plans trouvés :", len(plans))
 
         for plan in plans:
+            totals = self.get_totals_for_plan(plan.id)
             plans_data.append({
                 'id': plan.id,
                 'name': plan.name,
+                'resultat_chantier_cumule': totals['resultat_chantier_cumule'],
+                'activite_cumulee': totals['activite_cumulee'],
+                'depenses_cumulees': totals['depenses_cumulees'],
+                'factures_cumulees': totals['factures_cumulees'],
             })
-            print("Plan ID:", plan.id, ", Nom:", plan.name)
+            print("Plan ID:", plan.id, ", Nom:", plan.name, ", Totals:", totals)
 
         # Retourne les données dans un format structuré
         return {

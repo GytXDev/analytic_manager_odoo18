@@ -54,7 +54,7 @@ class DashboardControllers(http.Controller):
     @http.route('/dashboard/liste_plans', type='json', auth='user', website=True)
     def get_plans(self):
         """
-        Retourne la liste des plans analytiques.
+        Retourne la liste des plans analytiques avec les totaux calculés.
         """
         plans = request.env['analytic.dashboard'].sudo()
         result = plans.get_all_plans()
@@ -74,7 +74,6 @@ class DashboardControllers(http.Controller):
         else:
             return {'status': 'error', 'message': 'Plan non trouvé'} 
     
-    
     # Route pour la mise à jour des données d'un projet
     @http.route('/dashboard/update_project', type='json', auth="user", website=True)
     def update_project(self, id, **kwargs):
@@ -89,14 +88,24 @@ class DashboardControllers(http.Controller):
     @http.route('/dashboard/get_plan', type='json', auth='user', website=True)
     def dashboard_get_plan(self, plan_name):
         """
-        Retourne les données d'un plan spécifique.
+        Retourne les données d'un plan spécifique en cherchant par le champ name = plan_name.
+        Si non trouvé, on le crée avec la valeur plan=0.0
         """
-        plan = request.env['dashboard.plan'].sudo().search([('name', '=', plan_name)], limit=1)
-        if plan:
-            result = {'name': plan.name, 'plan': plan.plan}
-            return {'status': 'success', 'data': result}
-        else:
-            return {'status': 'error', 'message': 'Plan non trouvé'}
+        plan_model = request.env['dashboard.plan'].sudo()
+        plan = plan_model.search([('name', '=', plan_name)], limit=1)
+        if not plan:
+            plan = plan_model.create({
+                'name': plan_name,
+                'plan': 0.0,  # Valeur par défaut
+            })
+        return {
+            'status': 'success',
+            'data': {
+                'name': plan.name,
+                'plan': plan.plan
+            }
+        }
+
     
     @http.route('/dashboard/update_all_projects', type='json', auth="user", website=True)
     def update_all_projects(self, **kwargs):
@@ -108,24 +117,21 @@ class DashboardControllers(http.Controller):
         return result
     
     @http.route('/dashboard/update_plan', type='json', auth="user", website=True)
-    def update_plan(self, id, plan):
+    def update_plan(self, plan_name, plan_value):
         """
-        Crée un enregistrement dans 'dashboard.plan' avec l'ID et le plan (objectif financier) renseigné par l'utilisateur.
+        Met à jour ou crée le plan dont name = plan_name
         """
         plan_model = request.env['dashboard.plan'].sudo()
-        existing_plan = plan_model.search([('id', '=', id)])
+        existing_plan = plan_model.search([('name', '=', plan_name)], limit=1)
         if existing_plan:
-            existing_plan.write({'plan': plan})
+            existing_plan.write({'plan': plan_value})
             return {'status': 'success', 'message': 'Plan mis à jour avec succès'}
         else:
-            # Vérifier s'il existe déjà un plan avec le même nom pour éviter les doublons
-            duplicate_plan = plan_model.search([('name', '=', id)])
-            if duplicate_plan:
-                return {'status': 'error', 'message': 'Un plan avec le même nom existe déjà'}
-            else:
-                plan_model.create({'name': id, 'plan': plan})
-                return {'status': 'success', 'message': 'Plan créé avec succès'}
-            
+            # On crée le plan
+            plan_model.create({'name': plan_name, 'plan': plan_value})
+            return {'status': 'success', 'message': 'Plan créé avec succès'}
+
+   
         
     @http.route('/dashboard/export_to_excel', type='http', auth="user", website=True)
     def export_to_excel(self):

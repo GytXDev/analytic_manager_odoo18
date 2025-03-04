@@ -16,7 +16,8 @@ export class AnalyticDashboard extends Component {
         statistiquesProjets: {},
         projetsData: [],
         projetsEnCours: [],
-        projetsTermines: []
+        projetsTermines: [],
+        plansData: []
     });
 
     setup() {
@@ -244,7 +245,7 @@ export class AnalyticDashboard extends Component {
     async loadResultatChantierTotal(dateFilter = {}) {
         try {
             const result = await rpc('/dashboard/resultat_chantier_total', dateFilter);
-            const total = result?.resultat_chantier_total || 0;
+            const total = Math.round(result?.resultat_chantier_total || 0); // Arrondi à l'entier le plus proche
             this.state.resultatChantierTotal = total.toLocaleString();
         } catch (error) {
             console.error("Erreur lors de la récupération du résultat chantier total :", error);
@@ -280,53 +281,64 @@ export class AnalyticDashboard extends Component {
     // Fonction pour charger les plans analytiques
     async loadPlans() {
         try {
-            const response = await rpc('/dashboard/liste_plans', {});  // Appel API
+            const response = await rpc('/dashboard/liste_plans', {});
 
-            // Vérifier si les données sont présentes
             if (!response || response.status !== "success" || !response.data || !response.data.plans) {
                 console.error("Aucun plan trouvé ou réponse invalide :", response);
                 return;
             }
 
-            const plans = response.data.plans;  // Récupérer les plans à partir de response.data
+            const plans = response.data.plans;
             const planSelect = document.getElementById('planSelect');
-
-            planSelect.innerHTML = ''; // Vider les options existantes
+            planSelect.innerHTML = '';
 
             // Ajouter une option par défaut
             const defaultOption = document.createElement('option');
             defaultOption.value = "";
             defaultOption.textContent = "Sélectionnez une Exploitation";
             defaultOption.disabled = true;
-            defaultOption.selected = true;
             planSelect.appendChild(defaultOption);
 
+            // Option pour afficher toutes les exploitations
+            const plansDataOption = document.createElement('option');
+            plansDataOption.value = "plans_data";
+            plansDataOption.textContent = "Toutes les exploitations";
+            planSelect.appendChild(plansDataOption);
+
+            // Option pour afficher tous les codes projets
             const allPlansOption = document.createElement('option');
-            allPlansOption.value = "";
-            allPlansOption.textContent = "Toutes les exploitations";
+            allPlansOption.value = "all_project_code";
+            allPlansOption.textContent = "Tous les codes projets";
             planSelect.appendChild(allPlansOption);
 
-            // Ajouter les options dynamiquement
+            // Ajouter dynamiquement les plans
             plans.forEach(plan => {
                 const option = document.createElement('option');
-                option.value = plan.id;  // Assure-toi que l'ID du plan est bien la valeur de l'option
+                option.value = plan.id;
                 option.textContent = plan.name;
                 planSelect.appendChild(option);
             });
 
-            // Attacher l'événement de changement sur le select pour afficher le nom et l'ID du plan choisi
+            // Sélectionner automatiquement "plans_data"
+            plansDataOption.selected = true;
+
+            // Stocker les plans
+            this.state.plansData = plans;
+
+            // Attacher l'événement change
             if (planSelect) {
                 planSelect.addEventListener("change", () => {
                     const selectedPlanId = planSelect.value;
-                    const selectedPlan = plans.find(plan => plan.id === parseInt(selectedPlanId));
 
-                    if (selectedPlan) {
-                        console.log(`Plan sélectionné: ID = ${selectedPlan.id}, Nom = ${selectedPlan.name}`);
+                    if (selectedPlanId === "plans_data") {
+                        console.log("Navigation vers les données des plans.");
+                    } else if (selectedPlanId === "all_project_code") {
+                        console.log("Affichage de tous les projets.");
                     } else {
-                        console.log("Aucun plan sélectionné.");
+                        console.log(`Plan sélectionné: ID = ${selectedPlanId}`);
                     }
 
-                    this.loadProjets();  // Appeler la fonction pour charger les projets en fonction du plan sélectionné
+                    this.loadProjets();
                 });
             }
 
@@ -335,11 +347,10 @@ export class AnalyticDashboard extends Component {
         }
     }
 
-
     // Fonction de chargement des projets avec filtre dynamique
     async loadProjets(dateFilter = {}) {
         try {
-            const selectedPlan = parseInt(document.getElementById('planSelect').value);  // Conversion en entier
+            const selectedPlan = document.getElementById('planSelect').value;  // Utiliser la valeur sélectionnée
             const selectedData = document.getElementById('dataSelect').value || "resultat_chantier_cumule";
 
             const allProjets = await rpc('/dashboard/liste_projets', {});
@@ -358,19 +369,40 @@ export class AnalyticDashboard extends Component {
                 this.state.projetsEnCours = filteredProjets.filter(projet => projet.pourcentage_avancement < 1);
                 this.state.projetsTermines = filteredProjets.filter(projet => projet.pourcentage_avancement >= 1);
 
-                // Si aucun plan n'est sélectionné (Tous les plans), ne pas filtrer
-                if (selectedPlan) {
-                    filteredProjets = filteredProjets.filter(projet => projet.plan_id === selectedPlan);
-                } else {
-                    console.log("Affichage de tous les projets sans filtrage par plan.");
+                // Si l'option "Données des plans" est sélectionnée
+                if (selectedPlan === "plans_data") {
+                    // Utiliser les valeurs totales des plans depuis l'état
+                    this.state.projetsData = this.state.plansData.map(plan => ({
+                        code: plan.name,
+                        value: plan[selectedData],
+                        id: plan.id,
+                    }));
                 }
+                else if (selectedPlan == "all_project_code") {
+                    console.log("Affichage de tous les projets sans filtrage par plan.");
+                    // Mettre à jour projetsData pour le graphique
+                    this.state.projetsData = filteredProjets.map(projet => ({
+                        code: projet.code_projet,
+                        value: projet[selectedData],
+                        id: projet.id_code_project,
+                    }));
 
-                // Mettre à jour projetsData pour le graphique
-                this.state.projetsData = filteredProjets.map(projet => ({
-                    code: projet.code_projet,
-                    value: projet[selectedData],
-                    id: projet.id_code_project,
-                }));
+                } else if (selectedPlan) {
+                    // Filtrer par plan sélectionné
+                    filteredProjets = filteredProjets.filter(projet => projet.plan_id === parseInt(selectedPlan));
+                    // Mettre à jour projetsData pour le graphique
+                    this.state.projetsData = filteredProjets.map(projet => ({
+                        code: projet.code_projet,
+                        value: projet[selectedData],
+                        id: projet.id_code_project,
+                    }));
+
+                } else {
+                    this.state.projetsData = this.state.plansData.map(plan => ({
+                        code: plan.name,
+                        value: plan[selectedData],
+                    }));
+                }
 
                 // Compter les projets
                 this.state.projetsTerminesCount = this.state.projetsTermines.length;
@@ -395,7 +427,7 @@ export class AnalyticDashboard extends Component {
                     // Budget (CFA)
                     const budgetCell = document.createElement('td');
                     budgetCell.classList.add('text-center');
-                    budgetCell.textContent = projet.ca_final ? projet.ca_final.toLocaleString() : '0';
+                    budgetCell.textContent = projet.ca_final ? Math.round(projet.ca_final).toLocaleString() : '0';
                     row.appendChild(budgetCell);
 
                     // Avancement
@@ -437,7 +469,7 @@ export class AnalyticDashboard extends Component {
         }
     }
 
-
+    // Mettre à jour la méthode generateChart()
     generateChart(selectedDataLabel = "Résultat Chantier (CFA)") {
         const ctx = document.getElementById('ResultatChart').getContext('2d');
         const noDataMessage = document.getElementById('noDataMessage');
@@ -447,15 +479,13 @@ export class AnalyticDashboard extends Component {
         }
 
         if (!this.state.projetsData || !this.state.projetsData.length) {
-            noDataMessage.style.display = 'block'; // Afficher le message
+            noDataMessage.style.display = 'block';
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             return;
         }
 
-        // Filtrer les projets avec des valeurs non nulles
         let filteredProjets = this.state.projetsData.filter(projet => projet.value !== 0);
 
-        // Si le label sélectionné est "Dépenses Cumulées", convertir les valeurs en positives
         if (selectedDataLabel === "Dépenses Cumulées") {
             filteredProjets = filteredProjets.map(projet => ({
                 ...projet,
@@ -464,12 +494,12 @@ export class AnalyticDashboard extends Component {
         }
 
         if (!filteredProjets.length) {
-            noDataMessage.style.display = 'block'; // Afficher le message
+            noDataMessage.style.display = 'block';
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             return;
         }
 
-        noDataMessage.style.display = 'none'; // Cacher le message si des données sont présentes
+        noDataMessage.style.display = 'none';
 
         const labels = filteredProjets.map(projet => projet.code);
         const data = filteredProjets.map(projet => projet.value);
@@ -477,9 +507,7 @@ export class AnalyticDashboard extends Component {
 
         const backgroundColors = [
             '#42A5F5', '#66BB6A', '#FFA726', '#FF7043', '#8D6E63',
-            '#AB47BC', '#26C6DA', '#FFEE58', '#D4E157', '#EC407A',
-            '#7E57C2', '#5C6BC0', '#26A69A', '#8D6E63', '#78909C',
-            '#FFCA28', '#29B6F6', '#EF5350', '#9CCC65', '#FF5722'
+            '#AB47BC', '#26C6DA', '#FFEE58', '#D4E157', '#EC407A'
         ];
 
         this.chart = new Chart(ctx, {
@@ -499,7 +527,14 @@ export class AnalyticDashboard extends Component {
                     if (activePoints.length) {
                         const firstPoint = activePoints[0];
                         const projetId = ids[firstPoint.index];
-                        this.navigateToProjet(projetId, labels[firstPoint.index]);
+                        const projetCode = labels[firstPoint.index];
+
+                        const selectedPlan = document.getElementById('planSelect').value;
+                        if (selectedPlan === "plans_data") {
+                            this.navigateToPlan(projetId, projetCode);
+                        } else {
+                            this.navigateToProjet(projetId, projetCode);
+                        }
                     }
                 },
                 plugins: {
@@ -507,7 +542,7 @@ export class AnalyticDashboard extends Component {
                         callbacks: {
                             label: function (context) {
                                 const projetIndex = context.dataIndex;
-                                return `Code Projet: ${labels[projetIndex]}, Valeur: ${context.raw.toLocaleString()} CFA`;
+                                return `Code: ${labels[projetIndex]}, Valeur: ${context.raw.toLocaleString()} CFA`;
                             },
                         },
                     },
@@ -519,17 +554,32 @@ export class AnalyticDashboard extends Component {
         });
     }
 
-    // Méthode pour naviguer vers un projet spécifique
+    // Nouvelle méthode navigateToPlan()
+    navigateToPlan(planId, planCode) {
+        console.log(`Vous tentez d'accéder au plan : ID = ${planId}, Nom = ${planCode}`);
+
+        this.action.doAction({
+            type: 'ir.actions.act_window',
+            name: `Exploitation ${planCode}`,
+            res_model: 'analytic.dashboard',
+            views: [[false, "list"], [false, "form"]],
+            target: 'current',
+            domain: [['plan_id', '=', planId]],  
+        });
+    }
+
+    // Méthode existante navigateToProjet() (inchangée)
     navigateToProjet(projetId, projetCode) {
         this.action.doAction({
             type: 'ir.actions.act_window',
-            name: `Détails du projet ${projetCode}`, // Utilisation du code du projet
+            name: `Détails du projet ${projetCode}`,
             res_model: 'analytic.dashboard',
             views: [[false, "list"], [false, "form"]],
             target: 'current',
             domain: [['name.id', '=', projetId]],
         });
     }
+
 
     showCompletedProjects() {
         this.action.doAction({

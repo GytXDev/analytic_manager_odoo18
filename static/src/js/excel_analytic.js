@@ -43,7 +43,7 @@ export class ExcelAnalytic extends Component {
                     plan.moyenne_avancement = parseFloat((plan.projets.reduce((sum, p) => sum + ((p.pourcentage_avancement || 0) * 100), 0) / plan.projets.length).toFixed(2)) || 0;
 
                     // Récupérer les données du plan
-                    const planDataResponse = await rpc('/dashboard/get_plan', { plan_name: plan.id });
+                    const planDataResponse = await rpc('/dashboard/get_plan', { plan_name: plan.name });
                     if (planDataResponse.status === 'success') {
                         plan.plan_data = planDataResponse.data;
                         plan.plan = plan.plan_data.plan; // Assigner la valeur du plan
@@ -77,11 +77,11 @@ export class ExcelAnalytic extends Component {
     }
 
     async savePlanData(plan, fieldName, newValue, oldValue) {
-        console.log(`ID du plan: ${plan.id}, Champ modifié: ${fieldName}, Ancienne valeur: ${oldValue}, Nouvelle valeur: ${newValue}`);
+        console.log(`ID du plan: ${plan.name}, Champ modifié: ${fieldName}, Ancienne valeur: ${oldValue}, Nouvelle valeur: ${newValue}`);
         try {
             const response = await rpc('/dashboard/update_plan', {
-                id: plan.id,
-                plan: newValue,
+                plan_name: plan.name,     // => "AGENCE MDA"
+                plan_value: newValue,
             });
             if (response.status === 'success') {
                 console.log('Plan mis à jour avec succès');

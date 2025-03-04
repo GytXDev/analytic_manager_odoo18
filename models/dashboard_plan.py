@@ -1,3 +1,4 @@
+# analytic_manager/models/dashboard_plan.py
 from odoo import models, fields
 
 class DashboardPlan(models.Model):

@@ -41,74 +41,69 @@
                             <tr>
                                 <td><t t-esc="projet.code_projet" /></td>
                                 <td><t t-esc="projet.libelle" /></td>
-                                <td>
+                                <td class="edit-fields">
                                     <span t-if="!projet.editing_marche_initial" t-on-click="() => projet.editing_marche_initial = true">
-                                        <t t-esc="projet.marche_initial || 0" />
+                                        <t t-esc="(projet.marche_initial or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" />
                                     </span>
                                     <input t-if="projet.editing_marche_initial" type="number" t-model="projet.marche_initial" t-on-blur="() => { projet.editing_marche_initial = false; saveProjectData(projet, 'marche_initial', projet.marche_initial); }" />
                                 </td>
-                                <td>
+                                <td class="edit-fields">
                                     <span t-if="!projet.editing_ts" t-on-click="() => projet.editing_ts = true">
-                                        <t t-esc="projet.ts || 0" />
+                                        <t t-esc="(projet.ts or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" />
                                     </span>
                                     <input t-if="projet.editing_ts" type="number" t-model="projet.ts" t-on-blur="() => { projet.editing_ts = false; saveProjectData(projet, 'ts', projet.ts); }" />
                                 </td>
-                                <td><t t-esc="projet.ca_final || 0" /></td>
-                                <td class="highlight"><t t-esc="projet.factures_cumulees || 0" /></td>
-                                <td>
+                                <td><t t-esc="(projet.ca_final or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                                <td class="highlight"><t t-esc="(projet.factures_cumulees or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                                <td class="edit-fields">
                                     <span t-if="!projet.editing_od_facture" t-on-click="() => projet.editing_od_facture = true">
-                                        <t t-esc="projet.od_facture || 0" />
+                                        <t t-esc="(projet.od_facture or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" />
                                     </span>
                                     <input t-if="projet.editing_od_facture" type="number" t-model="projet.od_facture" t-on-blur="() => { projet.editing_od_facture = false; saveProjectData(projet, 'od_facture', projet.od_facture); }" />
                                 </td>
-                                <td>
+                                <td class="edit-fields">
                                     <span t-if="!projet.editing_non_facture" t-on-click="() => projet.editing_non_facture = true">
-                                        <t t-esc="projet.non_facture || 0" />
+                                        <t t-esc="(projet.non_facture or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" />
                                     </span>
                                     <input t-if="projet.editing_non_facture" type="number" t-model="projet.non_facture" t-on-blur="() => { projet.editing_non_facture = false; saveProjectData(projet, 'non_facture', projet.non_facture); }" />
                                 </td>
-                               <td>
-                                    <span t-if="!projet.editing_trop_facture" t-on-click="() => projet.editing_trop_facture = true">
-                                        <t t-esc="(projet.trop_facture || 0).toFixed(0)" />
-                                    </span>
-                                    <input t-if="projet.editing_trop_facture" type="number" t-model="projet.trop_facture" t-on-blur="() => { projet.editing_trop_facture = false; saveProjectData(projet, 'trop_facture', projet.trop_facture); }" />
-                                </td>
-                                <td><t t-esc="(projet.activite_cumulee || 0).toFixed(0)" /></td>
-                                <td class="lowlight"><t t-esc="((projet.pourcentage_avancement || 0) * 100).toFixed(0)" />%</td>
-                                <td class="highlight"><t t-esc="projet.debours_comptable_cumule || 0" /></td>
-                                <td>
+                                <td ><t t-esc="(projet.trop_facture or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                                <td class="lowlight"><t t-esc="(projet.activite_cumulee or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                                <td class="lowlight"><t t-esc="((projet.pourcentage_avancement or 0) * 100).toFixed(0)" />%</td>
+                                <td class="highlight"><t t-esc="(projet.debours_comptable_cumule or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                                <td class="edit-fields">
                                     <span t-if="!projet.editing_oda_d" t-on-click="() => projet.editing_oda_d = true">
-                                        <t t-esc="projet.oda_d || 0" />
+                                        <t t-esc="(projet.oda_d or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" />
                                     </span>
                                     <input t-if="projet.editing_oda_d" type="number" t-model="projet.oda_d" t-on-blur="() => { projet.editing_oda_d = false; saveProjectData(projet, 'oda_d', projet.oda_d); }" />
                                 </td>
-                                <td>
+                                <td class="edit-fields">
                                     <span t-if="!projet.editing_ffnp" t-on-click="() => projet.editing_ffnp = true">
-                                        <t t-esc="projet.ffnp || 0" />
+                                        <t t-esc="(projet.ffnp or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" />
                                     </span>
                                     <input t-if="projet.editing_ffnp" type="number" t-model="projet.ffnp" t-on-blur="() => { projet.editing_ffnp = false; saveProjectData(projet, 'ffnp', projet.ffnp); }" />
                                 </td>
-                                <td>
+                                <td class="edit-fields">
                                     <span t-if="!projet.editing_stocks" t-on-click="() => projet.editing_stocks = true">
-                                        <t t-esc="projet.stocks || 0" />
+                                        <t t-esc="(projet.stocks or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" />
                                     </span>
-                                    <input t-if="projet.editing_stocks" type="number" t-model="projet.stocks" t-on-blur="() => { projet.editing_stocks = false; saveProjectData(projet, 'stocks', projet.stocks); }" />
+                                     <input t-if="projet.editing_stocks" type="number" t-model="projet.stocks" t-on-blur="() => { projet.editing_stocks = false; saveProjectData(projet, 'stocks', projet.stocks); }" />
                                 </td>
-                                <td>
+                                <td class="edit-fields">
                                     <span t-if="!projet.editing_provisions" t-on-click="() => projet.editing_provisions = true">
-                                        <t t-esc="projet.provisions || 0" />
+                                        <t t-esc="(projet.provisions or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" />
                                     </span>
                                     <input t-if="projet.editing_provisions" type="number" t-model="projet.provisions" t-on-blur="() => { projet.editing_provisions = false; saveProjectData(projet, 'provisions', projet.provisions); }" />
                                 </td>
-                                <td><t t-esc="projet.total_debourses || 0" /></td>
-                                <td><t t-esc="projet.depenses_cumulees || 0" /></td>
-                                <td>
+                                <td class="lowlight"><t t-esc="(projet.total_debourses or 0)" /></td>
+                                <td class="lowlight"><t t-esc="(projet.depenses_cumulees or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                                <td class="edit-fields">
                                     <span t-if="!projet.editing_debours_previsionnels" t-on-click="() => projet.editing_debours_previsionnels = true">
-                                        <t t-esc="projet.debours_previsionnels || 0" />
+                                        <t t-esc="(projet.debours_previsionnels or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" />
                                     </span>
                                     <input t-if="projet.editing_debours_previsionnels" type="number" t-model="projet.debours_previsionnels" t-on-blur="() => { projet.editing_debours_previsionnels = false; saveProjectData(projet, 'debours_previsionnels', projet.debours_previsionnels); }" />
                                 </td>
-                                <td><t t-esc="projet.resultat_chantier_cumule || 0" /></td>
+                                <td class="lowlight"><t t-esc="(projet.resultat_chantier_cumule or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
                             </tr>
                         </t>
                     </tbody>
@@ -118,24 +113,24 @@
                                 RESULTAT OGOOUE
                                 <t t-esc="plan.name" />
                             </td>
-                            <td><t t-esc="plan.total_marche_initial || 0" /></td>
-                            <td><t t-esc="plan.total_ts || 0" /></td>
-                            <td><t t-esc="plan.total_ca_final || 0" /></td>
-                            <td class="highlight"><t t-esc="plan.total_factures_cumulees || 0" /></td>
-                            <td><t t-esc="plan.total_od_facture || 0" /></td>
-                            <td><t t-esc="plan.total_non_facture || 0" /></td>
-                            <td><t t-esc="plan.total_trop_facture || 0" /></td>
-                            <td><t t-esc="plan.total_activite_cumulee || 0" /></td>
-                            <td class="lowlight"><t t-esc="plan.moyenne_avancement.toFixed(2) || 0" />%</td>
-                            <td class="highlight"><t t-esc="plan.total_debours_comptable_cumule || 0" /></td>
-                            <td><t t-esc="plan.total_oda_d || 0" /></td>
-                            <td><t t-esc="plan.total_ffnp || 0" /></td>
-                            <td><t t-esc="plan.total_stocks || 0" /></td>
-                            <td><t t-esc="plan.total_provisions || 0" /></td>
-                            <td><t t-esc="plan.total_total_debourses || 0" /></td>
-                            <td><t t-esc="plan.total_depenses_cumulees || 0" /></td>
-                            <td><t t-esc="plan.total_debours_previsionnels || 0"/></td>
-                            <td><t t-esc="plan.total_resultat_chantier_cumule || 0" /></td>
+                            <td class="edit-fields"><t t-esc="(plan.total_marche_initial or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="edit-fields"><t t-esc="(plan.total_ts or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td><t t-esc="(plan.total_ca_final or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="highlight"><t t-esc="(plan.total_factures_cumulees or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="edit-fields"><t t-esc="(plan.total_od_facture or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="edit-fields"><t t-esc="(plan.total_non_facture or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td ><t t-esc="(plan.total_trop_facture or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="lowlight"><t t-esc="(plan.total_activite_cumulee or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="lowlight"><t t-esc="((plan.moyenne_avancement or 0).toFixed(2))" />%</td>
+                            <td class="highlight"><t t-esc="(plan.total_debours_comptable_cumule or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="edit-fields"><t t-esc="(plan.total_oda_d or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="edit-fields"><t t-esc="(plan.total_ffnp or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="edit-fields"><t t-esc="(plan.total_stocks or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="edit-fields"><t t-esc="(plan.total_provisions or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="lowlight"><t t-esc="(plan.total_total_debourses or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="lowlight"><t t-esc="(plan.total_depenses_cumulees or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="edit-fields"><t t-esc="(plan.total_debours_previsionnels or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="lowlight"><t t-esc="(plan.total_resultat_chantier_cumule or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -144,7 +139,7 @@
                         <tbody>
                             <tr>
                                 <td>Activité Cumulée</td>
-                                <td><t t-esc="plan.total_activite_cumulee || 0" /></td>
+                                <td><t t-esc="(plan.total_activite_cumulee or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
                                 <td></td>
                             </tr>
                             <!-- <tr>
@@ -156,12 +151,12 @@
                                 <td class="plan">PLAN</td>
                                 <td class="plan">
                                     <span t-if="!plan.editing_plan" t-on-click="() => plan.editing_plan = true">
-                                        <t t-esc="plan.plan || 0" />
+                                        <t t-esc="(plan.plan or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" />
                                     </span>
                                     <input t-if="plan.editing_plan" type="number" t-model="plan.plan" t-on-blur="() => { plan.editing_plan = false; savePlanData(plan, 'plan', plan.plan, plan.plan); }" />
                                 </td>
                                 <td class="plan">
-                                    <t t-esc="plan.pourcentage_activite_plan.toFixed(2) || 0" />%
+                                    <t t-esc="((plan.pourcentage_activite_plan or 0).toFixed(2))" />%
                                 </td>
                             </tr>
                         </tbody>
