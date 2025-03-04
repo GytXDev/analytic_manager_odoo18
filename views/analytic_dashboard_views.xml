@@ -105,7 +105,7 @@
             <field name="arch" type="xml">
                 <list string="Vues Analytiques">
                     <field name="plan_id" string="Exploitation"/>
-                    <field name="name"/>
+                    <field name="code_projet" string="Code Projet"/>
                     <field name="libelle" optional="hide"/>
                     <field name="marche_initial"/>
                     <field name="ts" widget="monetary" options="{'currency_field': 'company_currency_id'}" optional="hide"/>

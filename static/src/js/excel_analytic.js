@@ -43,14 +43,19 @@ export class ExcelAnalytic extends Component {
                     plan.moyenne_avancement = parseFloat((plan.projets.reduce((sum, p) => sum + ((p.pourcentage_avancement || 0) * 100), 0) / plan.projets.length).toFixed(2)) || 0;
 
                     // Récupérer les données du plan
-                    const planDataResponse = await rpc('/dashboard/get_plan', { plan_name: plan.name });
+                    const planDataResponse = await rpc('/dashboard/get_plan', {
+                        plan_id: plan.id, //ex. 48
+                    });
+
                     if (planDataResponse.status === 'success') {
                         plan.plan_data = planDataResponse.data;
-                        plan.plan = plan.plan_data.plan; // Assigner la valeur du plan
+                        plan.plan = planDataResponse.data.plan;
+                        // plan.name est l'ID numérique ? on peut stocker plan.name = plan.id pour rester cohérent
                         console.log('Données du plan:', plan.plan_data);
                     } else {
                         console.error('Erreur lors de la récupération des données du plan:', planDataResponse.message);
                     }
+
 
                     // Calcul du pourcentage d'activité par rapport au plan
                     plan.pourcentage_activite_plan = plan.plan ? (plan.total_activite_cumulee / plan.plan) * 100 : 0;
@@ -77,11 +82,11 @@ export class ExcelAnalytic extends Component {
     }
 
     async savePlanData(plan, fieldName, newValue, oldValue) {
-        console.log(`ID du plan: ${plan.name}, Champ modifié: ${fieldName}, Ancienne valeur: ${oldValue}, Nouvelle valeur: ${newValue}`);
+        console.log(`ID du plan: ${plan.id}, Champ modifié: ${fieldName}, Ancienne valeur: ${oldValue}, Nouvelle valeur: ${newValue}`);
         try {
             const response = await rpc('/dashboard/update_plan', {
-                plan_name: plan.name,     // => "AGENCE MDA"
-                plan_value: newValue,
+                plan_id: plan.id,  // . 48
+                plan: newValue     // . 100005
             });
             if (response.status === 'success') {
                 console.log('Plan mis à jour avec succès');
@@ -92,6 +97,7 @@ export class ExcelAnalytic extends Component {
             console.error('Erreur lors de la sauvegarde des données du plan:', error);
         }
     }
+
 
     exportToExcel() {
         window.location.href = '/dashboard/export_to_excel';

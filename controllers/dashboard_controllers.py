@@ -86,25 +86,26 @@ class DashboardControllers(http.Controller):
     
     # Route pour la mise à jour des données d'un projet
     @http.route('/dashboard/get_plan', type='json', auth='user', website=True)
-    def dashboard_get_plan(self, plan_name):
+    def dashboard_get_plan(self, plan_id):
         """
-        Retourne les données d'un plan spécifique en cherchant par le champ name = plan_name.
-        Si non trouvé, on le crée avec la valeur plan=0.0
+        Cherche ou crée un dashboard.plan dont name = str(plan_id).
         """
         plan_model = request.env['dashboard.plan'].sudo()
-        plan = plan_model.search([('name', '=', plan_name)], limit=1)
+        plan = plan_model.search([('name', '=', str(plan_id))], limit=1)
         if not plan:
             plan = plan_model.create({
-                'name': plan_name,
-                'plan': 0.0,  # Valeur par défaut
+                'name': str(plan_id),
+                'plan': 0.0
             })
         return {
             'status': 'success',
             'data': {
-                'name': plan.name,
-                'plan': plan.plan
+                'name': plan.name,  # ex. "48"
+                'plan': plan.plan   # ex. 25000
             }
         }
+
+
 
     
     @http.route('/dashboard/update_all_projects', type='json', auth="user", website=True)
@@ -117,22 +118,20 @@ class DashboardControllers(http.Controller):
         return result
     
     @http.route('/dashboard/update_plan', type='json', auth="user", website=True)
-    def update_plan(self, plan_name, plan_value):
+    def update_plan(self, plan_id, plan):
         """
-        Met à jour ou crée le plan dont name = plan_name
+        Met à jour ou crée un enregistrement dashboard.plan dont name = str(plan_id).
         """
         plan_model = request.env['dashboard.plan'].sudo()
-        existing_plan = plan_model.search([('name', '=', plan_name)], limit=1)
+        existing_plan = plan_model.search([('name', '=', str(plan_id))], limit=1)
         if existing_plan:
-            existing_plan.write({'plan': plan_value})
+            existing_plan.write({'plan': plan})
             return {'status': 'success', 'message': 'Plan mis à jour avec succès'}
         else:
-            # On crée le plan
-            plan_model.create({'name': plan_name, 'plan': plan_value})
+            plan_model.create({'name': str(plan_id), 'plan': plan})
             return {'status': 'success', 'message': 'Plan créé avec succès'}
 
-   
-        
+
     @http.route('/dashboard/export_to_excel', type='http', auth="user", website=True)
     def export_to_excel(self):
         """
