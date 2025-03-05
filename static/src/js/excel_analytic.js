@@ -59,6 +59,7 @@ export class ExcelAnalytic extends Component {
 
                     // Calcul du pourcentage d'activité par rapport au plan
                     plan.pourcentage_activite_plan = plan.plan ? (plan.total_activite_cumulee / plan.plan) * 100 : 0;
+
                 }
 
                 this.plans.push(...plans);

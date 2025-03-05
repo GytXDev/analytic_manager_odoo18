@@ -61,18 +61,6 @@ class DashboardControllers(http.Controller):
 
         return {'status': 'success', 'data': result}
 
-    # Route pour obtenir les objectifs financier des plans 
-    @http.route('/dashboard/get_plan', type='json', auth='user', website=True)
-    def dashboard_get_plan(self):
-        """
-        Retourne les données d'un plan spécifique.
-        """
-        plan = request.env['dashboard.plan'].sudo()
-        if plan:
-            result = {'name': plan.name, 'plan': plan.plan}
-            return {'status': 'success', 'data': result}
-        else:
-            return {'status': 'error', 'message': 'Plan non trouvé'} 
     
     # Route pour la mise à jour des données d'un projet
     @http.route('/dashboard/update_project', type='json', auth="user", website=True)
@@ -84,7 +72,6 @@ class DashboardControllers(http.Controller):
         result = project_model.update_project(id, kwargs)
         return result
     
-    # Route pour la mise à jour des données d'un projet
     @http.route('/dashboard/get_plan', type='json', auth='user', website=True)
     def dashboard_get_plan(self, plan_id):
         """
@@ -100,14 +87,13 @@ class DashboardControllers(http.Controller):
         return {
             'status': 'success',
             'data': {
-                'name': plan.name,  # ex. "48"
-                'plan': plan.plan   # ex. 25000
+                'name': plan.name,
+                'plan': plan.plan
             }
         }
 
 
-
-    
+    # Route pour la mise à jour des données d'un projet
     @http.route('/dashboard/update_all_projects', type='json', auth="user", website=True)
     def update_all_projects(self, **kwargs):
         """

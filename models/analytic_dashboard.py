@@ -329,15 +329,20 @@ class AnalyticDashboard(models.Model):
     @api.model
     def get_all_plans(self):
         """
-        Retourne uniquement les sous-plans analytiques (ceux dont parent_id n'est pas False)
-        avec les totaux calculés.
+        Retourne tous les plans analytiques qui sont soit des sous-plans
+        (parent_id != False) soit des "feuilles" n'ayant pas d'enfants (children_ids = False).
         """
-        # On récupère uniquement les sous-plans (plans qui ont un parent)
-        plans = self.env['account.analytic.plan'].search([('parent_id', '!=', False)])
+        # Domaine "OU"
+        #  1) parent_id != False
+        #  2) children_ids = False => pas de sous-plans
+        plans = self.env['account.analytic.plan'].search([
+            '|',
+            ('parent_id', '!=', False),
+            ('children_ids', '=', False),
+        ])
+
+
         plans_data = []
-
-        print("Nombre de plans trouvés :", len(plans))
-
         for plan in plans:
             totals = self.get_totals_for_plan(plan.id)
             plans_data.append({
@@ -348,13 +353,11 @@ class AnalyticDashboard(models.Model):
                 'depenses_cumulees': totals['depenses_cumulees'],
                 'factures_cumulees': totals['factures_cumulees'],
             })
-            print("Plan ID:", plan.id, ", Nom:", plan.name, ", Totals:", totals)
-
-        # Retourne les données dans un format structuré
         return {
             'count': len(plans),
             'plans': plans_data,
         }
+
 
 
     @api.model
