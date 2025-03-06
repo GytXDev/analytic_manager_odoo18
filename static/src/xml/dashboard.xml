@@ -24,7 +24,7 @@
                             <input type="date" id="start-date" />
                         </div>, 
                         <div class="analytic-manager date-input">
-                            <label for="end-date">Au :</label>
+                            <label f ="end-date">Au :</label>
                             <input type="date" id="end-date" />
                         </div>
                         <button class="analytic-manager btn-submit">Appliquer</button>

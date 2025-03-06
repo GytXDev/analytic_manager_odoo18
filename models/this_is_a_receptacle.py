@@ -220,4 +220,3 @@ class AnalyticDashboard(models.Model):
                 record.trop_facture = round(debours_previsionnels - total_debours_reels, 2)
             else:
                 record.trop_facture = 0.0
-
