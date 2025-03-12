@@ -1,4 +1,4 @@
-# analytic_manager\models\analytic_dashboard.py
+# ot_analytic_manager\models\analytic_dashboard.py
 from odoo import models, fields, api, _
 from odoo.http import content_disposition, request
 from odoo.exceptions import ValidationError
@@ -66,12 +66,12 @@ class AnalyticDashboard(models.Model):
     ca_final = fields.Float(
         string="CA Final (FCFA)", 
         compute='_compute_ca_final', 
-        store=False
+        store=True
     )
     activite_cumulee = fields.Float(
         string="Activité Cumulée (FCFA)", 
         compute='_compute_activite_cumulee', 
-        store=False
+        store=True
     )
 
     # Champ pour le pourcentage d'avancement (décimal)
@@ -329,35 +329,33 @@ class AnalyticDashboard(models.Model):
     @api.model
     def get_all_plans(self):
         """
-        Retourne tous les plans analytiques qui sont soit des sous-plans
-        (parent_id != False) soit des "feuilles" n'ayant pas d'enfants (children_ids = False).
+        Retourne uniquement les plans analytiques qui ont au moins un code projet associé.
         """
-        # Domaine "OU"
-        #  1) parent_id != False
-        #  2) children_ids = False => pas de sous-plans
         plans = self.env['account.analytic.plan'].search([
             '|',
             ('parent_id', '!=', False),
             ('children_ids', '=', False),
         ])
 
-
+        # Filtrer les plans qui ont des projets associés
         plans_data = []
         for plan in plans:
-            totals = self.get_totals_for_plan(plan.id)
-            plans_data.append({
-                'id': plan.id,
-                'name': plan.name,
-                'resultat_chantier_cumule': totals['resultat_chantier_cumule'],
-                'activite_cumulee': totals['activite_cumulee'],
-                'depenses_cumulees': totals['depenses_cumulees'],
-                'factures_cumulees': totals['factures_cumulees'],
-            })
-        return {
-            'count': len(plans),
-            'plans': plans_data,
-        }
+            projets_count = self.search_count([('plan_id', '=', plan.id)])
+            if projets_count > 0:  # On garde seulement les plans avec des projets
+                totals = self.get_totals_for_plan(plan.id)
+                plans_data.append({
+                    'id': plan.id,
+                    'name': plan.name,
+                    'resultat_chantier_cumule': totals['resultat_chantier_cumule'],
+                    'activite_cumulee': totals['activite_cumulee'],
+                    'depenses_cumulees': totals['depenses_cumulees'],
+                    'factures_cumulees': totals['factures_cumulees'],
+                })
 
+        return {
+            'count': len(plans_data),
+            'plans': plans_data,
+    }
 
 
     @api.model
@@ -462,8 +460,6 @@ class AnalyticDashboard(models.Model):
         puis ajoute un petit bloc supplémentaire (Activité Cumulée, PLAN, %)
         décalé vers la droite, pour chaque plan.
         """
-        import io
-        import xlsxwriter
 
         output = io.BytesIO()
         workbook = xlsxwriter.Workbook(output, {'in_memory': True})

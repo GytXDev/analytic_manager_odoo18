@@ -23,40 +23,44 @@ export class AnalyticDashboard extends Component {
     setup() {
         this.action = useService("action");
 
-        // Gestionnaire d'événement pour le clic du bouton
+        // Méthode pour mettre à jour le dashboard
         this.onClickUpdateDashboard = async () => {
             try {
-                const result = await rpc('/dashboard/update_dashboard', {});
+                await rpc('/dashboard/update_dashboard', {});
             } catch (error) {
                 console.error("Erreur lors de l'appel RPC :", error);
             }
         };
 
         onMounted(async () => {
+            // 1) Mettre à jour le dashboard (créer/MAJ les enregistrements si besoin)
             await this.onClickUpdateDashboard();
-            await this.loadResultatChantierTotal();
-            await this.loadProgressionMoyenne();
-            await this.loadStatistiquesProjets();
-            await this.loadProjets();
+
+            // 2) Charger la liste des plans (mais pas encore les projets)
             await this.loadPlans();
-            this.generateChart();
+
+            // 3) Charger quelques stats globales (statistiquesProjets)
+            await this.loadStatistiquesProjets();
+
+            // 4) Installer les listeners (ce qui va déclencher le chargement par dateFilter)
             this._eventListenersChart();
 
-            // Clic pour les projets terminés
+            // 5) Gérer les clics sur "Projets terminés" / "Projets en cours"
             const completedProjectsCard = document.getElementById('completed-projects-card');
             completedProjectsCard.addEventListener('click', () => {
                 this.showCompletedProjects();
             });
 
-            // Ajout de l'événement de clic pour les projets en cours
             const ongoingProjectsCard = document.getElementById('ongoing-projects-card');
             ongoingProjectsCard.addEventListener('click', () => {
                 this.showOngoingProjects();
             });
-
         });
     }
 
+    // ===========================================================
+    // =========== Méthode d'installation des listeners ==========
+    // ===========================================================
     _eventListenersChart() {
         // Toggle du style switcher
         document.querySelectorAll('.style-switcher-toggler').forEach(el => {
@@ -71,7 +75,6 @@ export class AnalyticDashboard extends Component {
         // Attacher les événements dynamiquement
         const planSelect = document.getElementById('planSelect');
         const dataSelect = document.getElementById('dataSelect');
-
         if (planSelect) {
             planSelect.addEventListener("change", () => this.loadProjets());
         }
@@ -79,18 +82,15 @@ export class AnalyticDashboard extends Component {
             dataSelect.addEventListener("change", () => this.loadProjets());
         }
 
-        // Fonction de recherche dynamique sur le champ de saisie
+        // ==== Gestion de la recherche dynamique ====
         document.getElementById('search-project-code').addEventListener('input', (event) => {
-            const searchTerm = event.target.value.toLowerCase(); // Récupérer le texte de recherche en minuscule
-
-            // Filtrer les projets en fonction du code projet
+            const searchTerm = event.target.value.toLowerCase();
             const filteredProjets = this.state.projetsEnCours.concat(this.state.projetsTermines).filter(projet =>
-                projet.code_projet.toLowerCase().includes(searchTerm) // Filtrer sur le code projet
+                projet.code_projet.toLowerCase().includes(searchTerm)
             );
 
-            // Mettre à jour dynamiquement le tableau avec les projets filtrés
             const tableBody = document.getElementById('projects-table-body');
-            tableBody.innerHTML = ''; // Vider le tableau existant
+            tableBody.innerHTML = '';
 
             filteredProjets.forEach(projet => {
                 const row = document.createElement('tr');
@@ -117,7 +117,7 @@ export class AnalyticDashboard extends Component {
                 progressBarContainer.classList.add('progress');
                 const progressBar = document.createElement('div');
                 progressBar.classList.add('progress-bar', 'bg-gradient-info');
-                progressBar.style.width = `${projet.pourcentage_avancement * 100}%`;
+                progressBar.style.width = `${(projet.pourcentage_avancement * 100).toFixed(0)}%`;
 
                 progressBarContainer.appendChild(progressBar);
                 progressWrapper.appendChild(progressBarContainer);
@@ -129,40 +129,42 @@ export class AnalyticDashboard extends Component {
                 progressCell.appendChild(progressWrapper);
                 row.appendChild(progressCell);
 
-                // Ajout du gestionnaire de clic sur la ligne
+                // Gestionnaire de clic sur la ligne
                 row.addEventListener('click', () => {
-                    this.navigateToProjet(projet.code_projet);
+                    this.navigateToProjet(projet.id_code_project, projet.code_projet);
                 });
 
                 tableBody.appendChild(row);
             });
         });
 
-        // Gestion du sélecteur de période
+        // ==== Sélecteur de période ====
         const periodSelector = document.getElementById('period-selector');
         const dateRangeDiv = document.getElementById('date-range');
         const periodLabel = document.getElementById('period-label');
         const applyButton = document.querySelector('.btn-submit');
 
-        // 🗓️ Charger par défaut les résultats du mois en cours
+        // Dates par défaut pour "mois en cours"
         const today = new Date();
         const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
         const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
+        // Appliquer un dateFilter par défaut
         const defaultDateFilter = {
             start: thisMonthStart.toISOString().split('T')[0],
             end: thisMonthEnd.toISOString().split('T')[0]
         };
 
-        periodSelector.value = 'this-year'; // Sélection par défaut
+        // On positionne "this-year" par défaut
+        periodSelector.value = 'this-year';
         periodLabel.textContent = "de l'année en cours";
 
-        // Chargement initial des données
+        // 1) Charger les données initiales (au lieu de onMounted)
         this.loadProjets(defaultDateFilter);
         this.loadResultatChantierTotal(defaultDateFilter);
         this.loadProgressionMoyenne(defaultDateFilter);
 
-        // 🎯 Gestion du sélecteur de période
+        // 🎯 Quand on change le select
         periodSelector.addEventListener('change', () => {
             if (periodSelector.value === 'custom') {
                 dateRangeDiv.classList.remove('hidden');
@@ -181,32 +183,29 @@ export class AnalyticDashboard extends Component {
                         periodLabel.textContent = "de l'année";
                         break;
                 }
-
-                // Rechargement des données pour la période sélectionnée
                 this.applyDateFilter();
             }
         });
 
-        // 🗓️ Gestion du bouton Appliquer pour la période personnalisée
+        // 🗓️ Bouton "Appliquer" pour le custom
         applyButton.addEventListener('click', () => this.applyDateFilter());
     }
 
-    // 🔄 Fonction pour appliquer le filtre en fonction de la période sélectionnée
+    // ===========================================================
+    // =========== Application du filtre de période =============
+    // ===========================================================
     applyDateFilter() {
         const periodSelector = document.getElementById('period-selector');
         const periodLabel = document.getElementById('period-label');
         const startDate = document.getElementById('start-date')?.value;
         const endDate = document.getElementById('end-date')?.value;
         const today = new Date();
-        const dateFilter = {
-            start: currentYearStart.toISOString().split('T')[0],
-            end: currentYearEnd.toISOString().split('T')[0]
-        };
+
+        let dateFilter = {};
 
         if (periodSelector.value === 'last-month') {
             const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
             const lastMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
-
             dateFilter = {
                 start: new Date(year, lastMonth, 1).toISOString().split('T')[0],
                 end: new Date(year, lastMonth + 1, 0).toISOString().split('T')[0]
@@ -228,47 +227,19 @@ export class AnalyticDashboard extends Component {
             periodLabel.textContent = "de cette année";
         }
         else if (periodSelector.value === 'custom' && startDate && endDate) {
-            dateFilter = {
-                start: startDate,
-                end: endDate
-            };
+            dateFilter = { start: startDate, end: endDate };
             periodLabel.textContent = `du ${startDate} au ${endDate}`;
         }
 
-        // 📊 Rechargement des données
+        // Rechargement des données
         this.loadProjets(dateFilter);
         this.loadResultatChantierTotal(dateFilter);
         this.loadProgressionMoyenne(dateFilter);
     }
 
-
-    async loadResultatChantierTotal(dateFilter = {}) {
-        try {
-            const result = await rpc('/dashboard/resultat_chantier_total', dateFilter);
-            const total = Math.round(result?.resultat_chantier_total || 0); // Arrondi à l'entier le plus proche
-            this.state.resultatChantierTotal = total.toLocaleString();
-        } catch (error) {
-            console.error("Erreur lors de la récupération du résultat chantier total :", error);
-        }
-    }
-
-    async loadProgressionMoyenne(dateFilter = {}) {
-        try {
-            const result = await rpc('/dashboard/progression_moyenne', dateFilter);
-            let progression = result?.progression_moyenne || 0;
-
-            if (typeof progression === 'number' && !isNaN(progression)) {
-                this.state.progressionMoyenne = (progression * 100).toFixed(2); // En pourcentage
-            } else {
-                this.state.progressionMoyenne = '0.00'; // Valeur par défaut si progression invalide
-                console.error("Progression moyenne invalide:", progression);
-            }
-        } catch (error) {
-            console.error("Erreur lors de la récupération de la progression moyenne :", error);
-            this.state.progressionMoyenne = '0.00'; // Valeur par défaut en cas d'erreur
-        }
-    }
-
+    // ===========================================================
+    // ============== Chargement des données générales ===========
+    // ===========================================================
     async loadStatistiquesProjets() {
         try {
             const result = await rpc('/dashboard/statistiques_projets', {});
@@ -278,34 +249,64 @@ export class AnalyticDashboard extends Component {
         }
     }
 
-    // Fonction pour charger les plans analytiques
+    async loadResultatChantierTotal(dateFilter = {}) {
+        try {
+            const result = await rpc('/dashboard/resultat_chantier_total', dateFilter);
+            const total = Math.round(result?.resultat_chantier_total || 0);
+            this.state.resultatChantierTotal = total.toLocaleString();
+        } catch (error) {
+            console.error("Erreur lors de la récupération du résultat chantier total :", error);
+        }
+    }
+
+    async loadProgressionMoyenne(dateFilter = {}) {
+        try {
+            const result = await rpc('/dashboard/progression_moyenne', dateFilter);
+            const progression = result?.progression_moyenne || 0;
+
+            if (typeof progression === 'number' && !isNaN(progression)) {
+                this.state.progressionMoyenne = (progression * 100).toFixed(2);
+            } else {
+                this.state.progressionMoyenne = '0.00';
+                console.error("Progression moyenne invalide:", progression);
+            }
+        } catch (error) {
+            console.error("Erreur loadProgressionMoyenne :", error);
+            this.state.progressionMoyenne = '0.00';
+        }
+    }
+
+    // ===========================================================
+    // ========= Récupérer la liste des plans (header) ==========
+    // ===========================================================
     async loadPlans() {
         try {
             const response = await rpc('/dashboard/liste_plans', {});
-
             if (!response || response.status !== "success" || !response.data || !response.data.plans) {
                 console.error("Aucun plan trouvé ou réponse invalide :", response);
                 return;
             }
 
             const plans = response.data.plans;
+            this.state.plansData = plans;
+
             const planSelect = document.getElementById('planSelect');
             planSelect.innerHTML = '';
 
-            // Ajouter une option par défaut
+            // Option par défaut
             const defaultOption = document.createElement('option');
             defaultOption.value = "";
             defaultOption.textContent = "Sélectionnez une Exploitation";
             defaultOption.disabled = true;
             planSelect.appendChild(defaultOption);
 
-            // Option pour afficher toutes les exploitations
+            // Option "Toutes les exploitations"
             const plansDataOption = document.createElement('option');
             plansDataOption.value = "plans_data";
             plansDataOption.textContent = "Toutes les exploitations";
             planSelect.appendChild(plansDataOption);
 
-            // Option pour afficher tous les codes projets
+            // Option "Tous les codes projets"
             const allPlansOption = document.createElement('option');
             allPlansOption.value = "all_project_code";
             allPlansOption.textContent = "Tous les codes projets";
@@ -322,174 +323,159 @@ export class AnalyticDashboard extends Component {
             // Sélectionner automatiquement "plans_data"
             plansDataOption.selected = true;
 
-            // Stocker les plans
-            this.state.plansData = plans;
-
-            // Attacher l'événement change
-            if (planSelect) {
-                planSelect.addEventListener("change", () => {
-                    const selectedPlanId = planSelect.value;
-
-                    if (selectedPlanId === "plans_data") {
-                        console.log("Navigation vers les données des plans.");
-                    } else if (selectedPlanId === "all_project_code") {
-                        console.log("Affichage de tous les projets.");
-                    } else {
-                        console.log(`Plan sélectionné: ID = ${selectedPlanId}`);
-                    }
-
-                    this.loadProjets();
-                });
-            }
-
         } catch (error) {
             console.error("Erreur lors de la récupération des plans :", error);
         }
     }
 
-    // Fonction de chargement des projets avec filtre dynamique
+    // ===========================================================
+    // ============== Chargement des projets =====================
+    // ===========================================================
     async loadProjets(dateFilter = {}) {
         try {
-            const selectedPlan = document.getElementById('planSelect').value;  // Utiliser la valeur sélectionnée
+            const selectedPlan = document.getElementById('planSelect').value;
             const selectedData = document.getElementById('dataSelect').value || "resultat_chantier_cumule";
 
+            // Récupère TOUTES les données projets (non filtrées)
             const allProjets = await rpc('/dashboard/liste_projets', {});
 
-            if (Array.isArray(allProjets)) {
-
-                // Filtrer par période si un filtre est fourni
-                let filteredProjets = allProjets.filter(projet => {
-                    const projetDate = new Date(projet.date);
-                    if (dateFilter.start && dateFilter.end) {
-                        return projetDate >= new Date(dateFilter.start) && projetDate <= new Date(dateFilter.end);
-                    }
-                    return true; // Pas de filtre
-                });
-
-                this.state.projetsEnCours = filteredProjets.filter(projet => projet.pourcentage_avancement < 1);
-                this.state.projetsTermines = filteredProjets.filter(projet => projet.pourcentage_avancement >= 1);
-
-                // Si l'option "Données des plans" est sélectionnée
-                if (selectedPlan === "plans_data") {
-                    // Utiliser les valeurs totales des plans depuis l'état
-                    this.state.projetsData = this.state.plansData.map(plan => ({
-                        code: plan.name,
-                        value: plan[selectedData],
-                        id: plan.id,
-                    }));
-                }
-                else if (selectedPlan == "all_project_code") {
-                    console.log("Affichage de tous les projets sans filtrage par plan.");
-                    // Mettre à jour projetsData pour le graphique
-                    this.state.projetsData = filteredProjets.map(projet => ({
-                        code: projet.code_projet,
-                        value: projet[selectedData],
-                        id: projet.id_code_project,
-                    }));
-
-                } else if (selectedPlan) {
-                    // Filtrer par plan sélectionné
-                    filteredProjets = filteredProjets.filter(projet => projet.plan_id === parseInt(selectedPlan));
-                    // Mettre à jour projetsData pour le graphique
-                    this.state.projetsData = filteredProjets.map(projet => ({
-                        code: projet.code_projet,
-                        value: projet[selectedData],
-                        id: projet.id_code_project,
-                    }));
-
-                } else {
-                    this.state.projetsData = this.state.plansData.map(plan => ({
-                        code: plan.name,
-                        value: plan[selectedData],
-                    }));
-                }
-
-                // Compter les projets
-                this.state.projetsTerminesCount = this.state.projetsTermines.length;
-                this.state.projetsEnCoursCount = this.state.projetsEnCours.length;
-
-                // Dynamiser le tableau des projets
-                const tableBody = document.getElementById('projects-table-body');
-                tableBody.innerHTML = ''; // Vider le tableau existant
-
-                // Ajout des lignes de projets
-                filteredProjets.forEach(projet => {
-                    const row = document.createElement('tr');
-
-                    // Code Projet
-                    const codeProjetCell = document.createElement('td');
-                    const codeProjetText = document.createElement('h6');
-                    codeProjetText.classList.add('text-sm');
-                    codeProjetText.textContent = projet.code_projet;
-                    codeProjetCell.appendChild(codeProjetText);
-                    row.appendChild(codeProjetCell);
-
-                    // Budget (CFA)
-                    const budgetCell = document.createElement('td');
-                    budgetCell.classList.add('text-center');
-                    budgetCell.textContent = projet.ca_final ? Math.round(projet.ca_final).toLocaleString() : '0';
-                    row.appendChild(budgetCell);
-
-                    // Avancement
-                    const progressCell = document.createElement('td');
-                    const progressWrapper = document.createElement('div');
-                    progressWrapper.classList.add('progress-wrapper', 'w-75', 'mx-auto');
-                    const progressBarContainer = document.createElement('div');
-                    progressBarContainer.classList.add('progress');
-                    const progressBar = document.createElement('div');
-                    progressBar.classList.add('progress-bar', 'bg-gradient-info');
-                    progressBar.style.width = `${projet.pourcentage_avancement * 100}%`;
-
-                    progressBarContainer.appendChild(progressBar);
-                    progressWrapper.appendChild(progressBarContainer);
-
-                    const progressText = document.createElement('small');
-                    progressText.textContent = `${(projet.pourcentage_avancement * 100).toFixed(0)}%`;
-                    progressWrapper.appendChild(progressText);
-
-                    progressCell.appendChild(progressWrapper);
-                    row.appendChild(progressCell);
-
-                    // Ajout du gestionnaire de clic sur la ligne
-                    row.addEventListener('click', () => {
-                        this.navigateToProjet(projet.id_code_project, projet.code_projet); // Passer aussi le code du projet
-                    });
-
-                    tableBody.appendChild(row);
-                });
-
-                // Appeler la fonction pour générer le graphique
-                this.generateChart(selectedData);
-
-            } else {
+            if (!Array.isArray(allProjets)) {
                 console.error("La réponse n'est pas un tableau :", allProjets);
+                return;
             }
+
+            // Appliquer un filtre de date si dateFilter est fourni
+            let filteredProjets = allProjets.filter(projet => {
+                if (dateFilter.start && dateFilter.end) {
+                    const projetDate = new Date(projet.date);
+                    return projetDate >= new Date(dateFilter.start) && projetDate <= new Date(dateFilter.end);
+                }
+                return true;
+            });
+
+            // Projets en cours / terminés
+            this.state.projetsEnCours = filteredProjets.filter(p => p.pourcentage_avancement < 1);
+            this.state.projetsTermines = filteredProjets.filter(p => p.pourcentage_avancement >= 1);
+
+            // Filtrage par plan
+            if (selectedPlan === "plans_data") {
+                // Graphique = Totaux des plans
+                this.state.projetsData = this.state.plansData.map(plan => ({
+                    code: plan.name,
+                    value: plan[selectedData],
+                    id: plan.id,
+                }));
+            }
+            else if (selectedPlan === "all_project_code") {
+                // Tous les projets (aucun filtrage plan)
+                console.log("Affichage de tous les projets sans filtrage par plan.");
+                this.state.projetsData = filteredProjets.map(projet => ({
+                    code: projet.code_projet,
+                    value: projet[selectedData],
+                    id: projet.id_code_project,
+                }));
+            }
+            else if (selectedPlan) {
+                // Filtrer par plan_id
+                filteredProjets = filteredProjets.filter(
+                    p => p.plan_id === parseInt(selectedPlan)
+                );
+                this.state.projetsData = filteredProjets.map(projet => ({
+                    code: projet.code_projet,
+                    value: projet[selectedData],
+                    id: projet.id_code_project,
+                }));
+            }
+            else {
+                // Pas de plan sélectionné => On affiche la liste des plans sous forme d'objets
+                this.state.projetsData = this.state.plansData.map(plan => ({
+                    code: plan.name,
+                    value: plan[selectedData],
+                }));
+            }
+
+            // Mettre à jour le tableau des projets
+            this.state.projetsTerminesCount = this.state.projetsTermines.length;
+            this.state.projetsEnCoursCount = this.state.projetsEnCours.length;
+
+            const tableBody = document.getElementById('projects-table-body');
+            tableBody.innerHTML = '';
+
+            // Injection des lignes
+            filteredProjets.forEach(projet => {
+                const row = document.createElement('tr');
+
+                const codeProjetCell = document.createElement('td');
+                const codeProjetText = document.createElement('h6');
+                codeProjetText.classList.add('text-sm');
+                codeProjetText.textContent = projet.code_projet;
+                codeProjetCell.appendChild(codeProjetText);
+                row.appendChild(codeProjetCell);
+
+                const budgetCell = document.createElement('td');
+                budgetCell.classList.add('text-center');
+                budgetCell.textContent = projet.ca_final ? Math.round(projet.ca_final).toLocaleString() : '0';
+                row.appendChild(budgetCell);
+
+                const progressCell = document.createElement('td');
+                const progressWrapper = document.createElement('div');
+                progressWrapper.classList.add('progress-wrapper', 'w-75', 'mx-auto');
+                const progressBarContainer = document.createElement('div');
+                progressBarContainer.classList.add('progress');
+                const progressBar = document.createElement('div');
+                progressBar.classList.add('progress-bar', 'bg-gradient-info');
+                progressBar.style.width = `${(projet.pourcentage_avancement * 100).toFixed(0)}%`;
+                progressBarContainer.appendChild(progressBar);
+                progressWrapper.appendChild(progressBarContainer);
+                const progressText = document.createElement('small');
+                progressText.textContent = `${(projet.pourcentage_avancement * 100).toFixed(0)}%`;
+                progressWrapper.appendChild(progressText);
+                progressCell.appendChild(progressWrapper);
+                row.appendChild(progressCell);
+
+                // Clic sur la ligne => naviguer
+                row.addEventListener('click', () => {
+                    this.navigateToProjet(projet.id_code_project, projet.code_projet);
+                });
+
+                tableBody.appendChild(row);
+            });
+
+            // Générer le graphique
+            this.generateChart(selectedData);
+
         } catch (error) {
             console.error("Erreur lors de la récupération des projets:", error);
         }
     }
 
-    // Mettre à jour la méthode generateChart()
+    // ===========================================================
+    // ================= Génération du graphique =================
+    // ===========================================================
     generateChart(selectedDataLabel = "Résultat Chantier (CFA)") {
         const ctx = document.getElementById('ResultatChart').getContext('2d');
         const noDataMessage = document.getElementById('noDataMessage');
 
+        // Si un graphique existait, on le détruit
         if (this.chart) {
             this.chart.destroy();
         }
 
+        // S'il n'y a pas de data
         if (!this.state.projetsData || !this.state.projetsData.length) {
             noDataMessage.style.display = 'block';
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             return;
         }
 
-        let filteredProjets = this.state.projetsData.filter(projet => projet.value !== 0);
+        // Filtrer les projets de valeur nulle
+        let filteredProjets = this.state.projetsData.filter(p => p.value !== 0);
 
+        // Correction si "Dépenses Cumulées"
         if (selectedDataLabel === "Dépenses Cumulées") {
-            filteredProjets = filteredProjets.map(projet => ({
-                ...projet,
-                value: Math.abs(projet.value)
+            filteredProjets = filteredProjets.map(p => ({
+                ...p,
+                value: Math.abs(p.value)
             }));
         }
 
@@ -501,9 +487,9 @@ export class AnalyticDashboard extends Component {
 
         noDataMessage.style.display = 'none';
 
-        const labels = filteredProjets.map(projet => projet.code);
-        const data = filteredProjets.map(projet => projet.value);
-        const ids = filteredProjets.map(projet => projet.id);
+        const labels = filteredProjets.map(p => p.code);
+        const data = filteredProjets.map(p => p.value);
+        const ids = filteredProjets.map(p => p.id);
 
         const backgroundColors = [
             '#42A5F5', '#66BB6A', '#FFA726', '#FF7043', '#8D6E63',
@@ -528,8 +514,9 @@ export class AnalyticDashboard extends Component {
                         const firstPoint = activePoints[0];
                         const projetId = ids[firstPoint.index];
                         const projetCode = labels[firstPoint.index];
-
                         const selectedPlan = document.getElementById('planSelect').value;
+
+                        // On dirige vers plan ou projet
                         if (selectedPlan === "plans_data") {
                             this.navigateToPlan(projetId, projetCode);
                         } else {
@@ -541,8 +528,9 @@ export class AnalyticDashboard extends Component {
                     tooltip: {
                         callbacks: {
                             label: function (context) {
-                                const projetIndex = context.dataIndex;
-                                return `Code: ${labels[projetIndex]}, Valeur: ${context.raw.toLocaleString()} CFA`;
+                                const i = context.dataIndex;
+                                const val = context.raw;
+                                return `Code: ${labels[i]}, Valeur: ${val.toLocaleString()} CFA`;
                             },
                         },
                     },
@@ -554,21 +542,21 @@ export class AnalyticDashboard extends Component {
         });
     }
 
-    // Nouvelle méthode navigateToPlan()
+    // ===========================================================
+    // ======================= Navigation ========================
+    // ===========================================================
     navigateToPlan(planId, planCode) {
         console.log(`Vous tentez d'accéder au plan : ID = ${planId}, Nom = ${planCode}`);
-
         this.action.doAction({
             type: 'ir.actions.act_window',
             name: `Exploitation ${planCode}`,
             res_model: 'analytic.dashboard',
             views: [[false, "list"], [false, "form"]],
             target: 'current',
-            domain: [['plan_id', '=', planId]],  
+            domain: [['plan_id', '=', planId]],
         });
     }
 
-    // Méthode existante navigateToProjet() (inchangée)
     navigateToProjet(projetId, projetCode) {
         this.action.doAction({
             type: 'ir.actions.act_window',
@@ -580,7 +568,9 @@ export class AnalyticDashboard extends Component {
         });
     }
 
-
+    // ===========================================================
+    // ================== Afficher projets =======================
+    // ===========================================================
     showCompletedProjects() {
         this.action.doAction({
             type: 'ir.actions.act_window',
@@ -588,7 +578,7 @@ export class AnalyticDashboard extends Component {
             res_model: 'analytic.dashboard',
             views: [[false, 'list'], [false, 'form']],
             target: 'current',
-            domain: [['pourcentage_avancement', '>=', 1]], // Filtrer pour les projets terminés
+            domain: [['pourcentage_avancement', '>=', 1]],
         });
     }
 
@@ -599,7 +589,7 @@ export class AnalyticDashboard extends Component {
             res_model: 'analytic.dashboard',
             views: [[false, 'list'], [false, 'form']],
             target: 'current',
-            domain: [['pourcentage_avancement', '<', 1]], // Filtrer pour les projets en cours
+            domain: [['pourcentage_avancement', '<', 1]],
         });
     }
 }

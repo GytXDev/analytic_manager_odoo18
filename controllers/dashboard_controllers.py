@@ -1,4 +1,4 @@
-# analytic_manager/controllers/dashboard_controllers.py
+# ot_analytic_manager/controllers/dashboard_controllers.py
 from odoo import http
 from odoo.http import request, content_disposition
 
