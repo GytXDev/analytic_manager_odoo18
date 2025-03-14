@@ -578,7 +578,7 @@ export class AnalyticDashboard extends Component {
             res_model: 'analytic.dashboard',
             views: [[false, 'list'], [false, 'form']],
             target: 'current',
-            domain: [['pourcentage_avancement', '>=', 1]],
+            domain: [['pourcentage_avancement_stored', '<', 1]],
         });
     }
 
@@ -589,7 +589,7 @@ export class AnalyticDashboard extends Component {
             res_model: 'analytic.dashboard',
             views: [[false, 'list'], [false, 'form']],
             target: 'current',
-            domain: [['pourcentage_avancement', '<', 1]],
+            domain: [['pourcentage_avancement_stored', '<', 1]],
         });
     }
 }

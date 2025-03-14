@@ -25,7 +25,6 @@ class AnalyticDashboard(models.Model):
         readonly=True
     )
 
-
     _sql_constraints = [
         ('unique_analytic_account', 'unique(name)', 'Un tableau analytique existe déjà pour ce projet !')
     ]
@@ -66,19 +65,26 @@ class AnalyticDashboard(models.Model):
     ca_final = fields.Float(
         string="CA Final (FCFA)", 
         compute='_compute_ca_final', 
-        store=True
+        store=False
     )
     activite_cumulee = fields.Float(
         string="Activité Cumulée (FCFA)", 
         compute='_compute_activite_cumulee', 
-        store=True
+        store=False
     )
 
-    # Champ pour le pourcentage d'avancement (décimal)
+    # Champ non stocké pour affichage dynamique
     pourcentage_avancement = fields.Float(
         string="Avancement (%)",
         compute='_compute_pourcentage_avancement',
-        store=True 
+        store=False  # Toujours à jour, mais pas utilisable en recherche SQL
+    )
+
+    # Champ stocké pour les recherches et tris SQL
+    pourcentage_avancement_stored = fields.Float(
+        string="Avancement (%) (Stocké)",
+        compute='_compute_pourcentage_avancement',
+        store=True
     )
 
     resultat_chantier_cumule = fields.Float(
@@ -168,7 +174,7 @@ class AnalyticDashboard(models.Model):
 
                 total_factures_fournisseurs = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'in_invoice')
                 total_avoirs_fournisseurs = sum(move.amount_untaxed_in_currency_signed for move in move_ids if move.move_type == 'in_refund')
-                record.debours_comptable_cumule = total_factures_fournisseurs - total_avoirs_fournisseurs
+                record.debours_comptable_cumule = total_factures_fournisseurs + total_avoirs_fournisseurs
             else:
                 record.debours_comptable_cumule = 0.0
         
@@ -266,10 +272,12 @@ class AnalyticDashboard(models.Model):
     def _compute_pourcentage_avancement(self):
         for record in self:
             if record.ca_final and record.activite_cumulee:
-                # Calcul du pourcentage avec 2 décimales
-                record.pourcentage_avancement = round((record.activite_cumulee or 0) / record.ca_final, 2)
+                valeur = (record.activite_cumulee or 0) / record.ca_final
+                record.pourcentage_avancement = round(valeur, 2)
+                record.pourcentage_avancement_stored = round(valeur, 2)
             else:
                 record.pourcentage_avancement = 0.0
+                record.pourcentage_avancement_stored = 0.0
 
     # Ajout des méthodes supplémentaires pour l'analyse des projets
     def get_all_projets(self, plan_id=None):
@@ -337,11 +345,11 @@ class AnalyticDashboard(models.Model):
             ('children_ids', '=', False),
         ])
 
-        # Filtrer les plans qui ont des projets associés
         plans_data = []
         for plan in plans:
+            # Vérifier si au moins un projet est associé à ce plan
             projets_count = self.search_count([('plan_id', '=', plan.id)])
-            if projets_count > 0:  # On garde seulement les plans avec des projets
+            if projets_count > 0:  # ✅ Filtrer les plans sans projets
                 totals = self.get_totals_for_plan(plan.id)
                 plans_data.append({
                     'id': plan.id,
@@ -353,9 +361,9 @@ class AnalyticDashboard(models.Model):
                 })
 
         return {
-            'count': len(plans_data),
+            'count': len(plans_data),  # 🟢 Ne compte que les plans ayant des projets
             'plans': plans_data,
-    }
+        }
 
 
     @api.model
