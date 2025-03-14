@@ -11,7 +11,7 @@
     'sequence': -101,
     'category': 'Accounting',
     'version': '1.0',
-    'depends': ['base', 'web', 'bus', 'analytic'],
+    'depends': ['base', 'web', 'bus', 'analytic', 'account'],
     'data': [
         'security/ir.model.access.csv',
         'views/analytic_menu.xml',

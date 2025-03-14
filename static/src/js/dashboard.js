@@ -23,7 +23,7 @@ export class AnalyticDashboard extends Component {
     setup() {
         this.action = useService("action");
 
-        // Méthode pour mettre à jour le dashboard
+        // Méthode pour initialiser le dashboard
         this.onClickUpdateDashboard = async () => {
             try {
                 await rpc('/dashboard/update_dashboard', {});
@@ -32,29 +32,33 @@ export class AnalyticDashboard extends Component {
             }
         };
 
+        // Une fois le composant monté
         onMounted(async () => {
-            // 1) Mettre à jour le dashboard (créer/MAJ les enregistrements si besoin)
+            // 1) Mettre à jour le tableau analytique
             await this.onClickUpdateDashboard();
 
-            // 2) Charger la liste des plans (mais pas encore les projets)
+            // 2) Charger la liste des plans
             await this.loadPlans();
 
-            // 3) Charger quelques stats globales (statistiquesProjets)
+            // 3) Charger les stats globales
             await this.loadStatistiquesProjets();
 
-            // 4) Installer les listeners (ce qui va déclencher le chargement par dateFilter)
+            // 4) Installer les divers listeners
             this._eventListenersChart();
 
-            // 5) Gérer les clics sur "Projets terminés" / "Projets en cours"
+            // 5) Gérer les clics sur "Projets terminés" et "Projets en cours"
             const completedProjectsCard = document.getElementById('completed-projects-card');
-            completedProjectsCard.addEventListener('click', () => {
-                this.showCompletedProjects();
-            });
-
+            if (completedProjectsCard) {
+                completedProjectsCard.addEventListener('click', () => {
+                    this.showCompletedProjects();
+                });
+            }
             const ongoingProjectsCard = document.getElementById('ongoing-projects-card');
-            ongoingProjectsCard.addEventListener('click', () => {
-                this.showOngoingProjects();
-            });
+            if (ongoingProjectsCard) {
+                ongoingProjectsCard.addEventListener('click', () => {
+                    this.showOngoingProjects();
+                });
+            }
         });
     }
 
@@ -72,7 +76,7 @@ export class AnalyticDashboard extends Component {
             });
         });
 
-        // Attacher les événements dynamiquement
+        // Gestion des selects
         const planSelect = document.getElementById('planSelect');
         const dataSelect = document.getElementById('dataSelect');
         if (planSelect) {
@@ -82,113 +86,74 @@ export class AnalyticDashboard extends Component {
             dataSelect.addEventListener("change", () => this.loadProjets());
         }
 
-        // ==== Gestion de la recherche dynamique ====
-        document.getElementById('search-project-code').addEventListener('input', (event) => {
-            const searchTerm = event.target.value.toLowerCase();
-            const filteredProjets = this.state.projetsEnCours.concat(this.state.projetsTermines).filter(projet =>
-                projet.code_projet.toLowerCase().includes(searchTerm)
-            );
-
-            const tableBody = document.getElementById('projects-table-body');
-            tableBody.innerHTML = '';
-
-            filteredProjets.forEach(projet => {
-                const row = document.createElement('tr');
-
-                // Code Projet
-                const codeProjetCell = document.createElement('td');
-                const codeProjetText = document.createElement('h6');
-                codeProjetText.classList.add('text-sm');
-                codeProjetText.textContent = projet.code_projet;
-                codeProjetCell.appendChild(codeProjetText);
-                row.appendChild(codeProjetCell);
-
-                // Budget (CFA)
-                const budgetCell = document.createElement('td');
-                budgetCell.classList.add('text-center');
-                budgetCell.textContent = projet.ca_final ? projet.ca_final.toLocaleString() : '0';
-                row.appendChild(budgetCell);
-
-                // Avancement
-                const progressCell = document.createElement('td');
-                const progressWrapper = document.createElement('div');
-                progressWrapper.classList.add('progress-wrapper', 'w-75', 'mx-auto');
-                const progressBarContainer = document.createElement('div');
-                progressBarContainer.classList.add('progress');
-                const progressBar = document.createElement('div');
-                progressBar.classList.add('progress-bar', 'bg-gradient-info');
-                progressBar.style.width = `${(projet.pourcentage_avancement * 100).toFixed(0)}%`;
-
-                progressBarContainer.appendChild(progressBar);
-                progressWrapper.appendChild(progressBarContainer);
-
-                const progressText = document.createElement('small');
-                progressText.textContent = `${(projet.pourcentage_avancement * 100).toFixed(0)}%`;
-                progressWrapper.appendChild(progressText);
-
-                progressCell.appendChild(progressWrapper);
-                row.appendChild(progressCell);
-
-                // Gestionnaire de clic sur la ligne
-                row.addEventListener('click', () => {
-                    this.navigateToProjet(projet.id_code_project, projet.code_projet);
-                });
-
-                tableBody.appendChild(row);
+        // Recherche dynamique
+        const searchProjectInput = document.getElementById('search-project-code');
+        if (searchProjectInput) {
+            searchProjectInput.addEventListener('input', (event) => {
+                const searchTerm = event.target.value.toLowerCase();
+                const filteredProjets = this.state.projetsEnCours.concat(this.state.projetsTermines).filter(projet =>
+                    projet.code_projet.toLowerCase().includes(searchTerm)
+                );
+                this.updateProjectsTable(filteredProjets);
             });
-        });
+        }
 
-        // ==== Sélecteur de période ====
+        // Sélecteur de période
         const periodSelector = document.getElementById('period-selector');
         const dateRangeDiv = document.getElementById('date-range');
         const periodLabel = document.getElementById('period-label');
         const applyButton = document.querySelector('.btn-submit');
 
-        // Dates par défaut pour "mois en cours"
+        // Dates par défaut (mois en cours)
         const today = new Date();
         const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
         const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-        // Appliquer un dateFilter par défaut
         const defaultDateFilter = {
             start: thisMonthStart.toISOString().split('T')[0],
             end: thisMonthEnd.toISOString().split('T')[0]
         };
 
         // On positionne "this-year" par défaut
-        periodSelector.value = 'this-year';
-        periodLabel.textContent = "de l'année en cours";
+        if (periodSelector) {
+            periodSelector.value = 'this-year';
+        }
+        if (periodLabel) {
+            periodLabel.textContent = "de l'année en cours";
+        }
 
-        // 1) Charger les données initiales (au lieu de onMounted)
+        // Charger les données initiales
         this.loadProjets(defaultDateFilter);
         this.loadResultatChantierTotal(defaultDateFilter);
         this.loadProgressionMoyenne(defaultDateFilter);
 
-        // 🎯 Quand on change le select
-        periodSelector.addEventListener('change', () => {
-            if (periodSelector.value === 'custom') {
-                dateRangeDiv.classList.remove('hidden');
-                periodLabel.textContent = "pour la période personnalisée";
-            } else {
-                dateRangeDiv.classList.add('hidden');
-
-                switch (periodSelector.value) {
-                    case 'this-month':
-                        periodLabel.textContent = "du mois en cours";
-                        break;
-                    case 'last-month':
-                        periodLabel.textContent = "du mois précédent";
-                        break;
-                    case 'this-year':
-                        periodLabel.textContent = "de l'année";
-                        break;
+        // Event sur le periodSelector
+        if (periodSelector) {
+            periodSelector.addEventListener('change', () => {
+                if (periodSelector.value === 'custom') {
+                    dateRangeDiv.classList.remove('hidden');
+                    periodLabel.textContent = "pour la période personnalisée";
+                } else {
+                    dateRangeDiv.classList.add('hidden');
+                    switch (periodSelector.value) {
+                        case 'this-month':
+                            periodLabel.textContent = "du mois en cours";
+                            break;
+                        case 'last-month':
+                            periodLabel.textContent = "du mois précédent";
+                            break;
+                        case 'this-year':
+                            periodLabel.textContent = "de l'année";
+                            break;
+                    }
+                    this.applyDateFilter();
                 }
-                this.applyDateFilter();
-            }
-        });
+            });
+        }
 
-        // 🗓️ Bouton "Appliquer" pour le custom
-        applyButton.addEventListener('click', () => this.applyDateFilter());
+        // Bouton "Appliquer" pour la période custom
+        if (applyButton) {
+            applyButton.addEventListener('click', () => this.applyDateFilter());
+        }
     }
 
     // ===========================================================
@@ -224,28 +189,27 @@ export class AnalyticDashboard extends Component {
                 start: new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0],
                 end: new Date(today.getFullYear(), 11, 31).toISOString().split('T')[0]
             };
-            periodLabel.textContent = "de cette année";
+            periodLabel.textContent = "de l'année";
         }
         else if (periodSelector.value === 'custom' && startDate && endDate) {
             dateFilter = { start: startDate, end: endDate };
             periodLabel.textContent = `du ${startDate} au ${endDate}`;
         }
 
-        // Rechargement des données
         this.loadProjets(dateFilter);
         this.loadResultatChantierTotal(dateFilter);
         this.loadProgressionMoyenne(dateFilter);
     }
 
     // ===========================================================
-    // ============== Chargement des données générales ===========
+    // ============ Chargement des données générales ============
     // ===========================================================
     async loadStatistiquesProjets() {
         try {
             const result = await rpc('/dashboard/statistiques_projets', {});
             this.state.statistiquesProjets = result || {};
         } catch (error) {
-            console.error("Erreur lors de la récupération des statistiques des projets :", error);
+            console.error("Erreur lors de la récupération des stats_projets :", error);
         }
     }
 
@@ -263,7 +227,6 @@ export class AnalyticDashboard extends Component {
         try {
             const result = await rpc('/dashboard/progression_moyenne', dateFilter);
             const progression = result?.progression_moyenne || 0;
-
             if (typeof progression === 'number' && !isNaN(progression)) {
                 this.state.progressionMoyenne = (progression * 100).toFixed(2);
             } else {
@@ -271,13 +234,13 @@ export class AnalyticDashboard extends Component {
                 console.error("Progression moyenne invalide:", progression);
             }
         } catch (error) {
-            console.error("Erreur loadProgressionMoyenne :", error);
+            console.error("Erreur loadProgressionMoyenne:", error);
             this.state.progressionMoyenne = '0.00';
         }
     }
 
     // ===========================================================
-    // ========= Récupérer la liste des plans (header) ==========
+    // ========== Récupérer la liste des plans (header) =========
     // ===========================================================
     async loadPlans() {
         try {
@@ -286,14 +249,16 @@ export class AnalyticDashboard extends Component {
                 console.error("Aucun plan trouvé ou réponse invalide :", response);
                 return;
             }
-
             const plans = response.data.plans;
             this.state.plansData = plans;
 
             const planSelect = document.getElementById('planSelect');
+            if (!planSelect) {
+                return;
+            }
             planSelect.innerHTML = '';
 
-            // Option par défaut
+            // Option "Sélectionnez ..."
             const defaultOption = document.createElement('option');
             defaultOption.value = "";
             defaultOption.textContent = "Sélectionnez une Exploitation";
@@ -314,52 +279,50 @@ export class AnalyticDashboard extends Component {
 
             // Ajouter dynamiquement les plans
             plans.forEach(plan => {
-                const option = document.createElement('option');
-                option.value = plan.id;
-                option.textContent = plan.name;
-                planSelect.appendChild(option);
+                const opt = document.createElement('option');
+                opt.value = plan.id;
+                opt.textContent = plan.name;
+                planSelect.appendChild(opt);
             });
 
-            // Sélectionner automatiquement "plans_data"
+            // Sélectionner "plans_data"
             plansDataOption.selected = true;
 
         } catch (error) {
-            console.error("Erreur lors de la récupération des plans :", error);
+            console.error("Erreur lors de la récupération des plans:", error);
         }
     }
 
     // ===========================================================
-    // ============== Chargement des projets =====================
+    // =============== Chargement des projets ====================
     // ===========================================================
     async loadProjets(dateFilter = {}) {
         try {
+            // 1) Récupération des sélections (Plan, DataSelect)
             const selectedPlan = document.getElementById('planSelect').value;
             const selectedData = document.getElementById('dataSelect').value || "resultat_chantier_cumule";
 
-            // Récupère TOUTES les données projets (non filtrées)
-            const allProjets = await rpc('/dashboard/liste_projets', {});
+            // 2) Paramètres à envoyer au contrôleur
+            let params = {
+                start: dateFilter.start || null,
+                end: dateFilter.end || null,
+                plan_id: null,
+            };
+            if (selectedPlan && selectedPlan !== "plans_data" && selectedPlan !== "all_project_code") {
+                params.plan_id = parseInt(selectedPlan);
+            }
 
+            // 3) Appel RPC => Projets PÉRIODISÉS (invoice_date)
+            const allProjets = await rpc('/dashboard/liste_projets', params);
             if (!Array.isArray(allProjets)) {
-                console.error("La réponse n'est pas un tableau :", allProjets);
+                console.error("Réponse non tableau:", allProjets);
                 return;
             }
 
-            // Appliquer un filtre de date si dateFilter est fourni
-            let filteredProjets = allProjets.filter(projet => {
-                if (dateFilter.start && dateFilter.end) {
-                    const projetDate = new Date(projet.date);
-                    return projetDate >= new Date(dateFilter.start) && projetDate <= new Date(dateFilter.end);
-                }
-                return true;
-            });
-
-            // Projets en cours / terminés
-            this.state.projetsEnCours = filteredProjets.filter(p => p.pourcentage_avancement < 1);
-            this.state.projetsTermines = filteredProjets.filter(p => p.pourcentage_avancement >= 1);
-
-            // Filtrage par plan
+            // 4) On applique la logique planSelect
+            let filteredProjets = allProjets;
             if (selectedPlan === "plans_data") {
-                // Graphique = Totaux des plans
+                // Graphique => cumul plan => this.state.plansData
                 this.state.projetsData = this.state.plansData.map(plan => ({
                     code: plan.name,
                     value: plan[selectedData],
@@ -367,8 +330,6 @@ export class AnalyticDashboard extends Component {
                 }));
             }
             else if (selectedPlan === "all_project_code") {
-                // Tous les projets (aucun filtrage plan)
-                console.log("Affichage de tous les projets sans filtrage par plan.");
                 this.state.projetsData = filteredProjets.map(projet => ({
                     code: projet.code_projet,
                     value: projet[selectedData],
@@ -376,7 +337,7 @@ export class AnalyticDashboard extends Component {
                 }));
             }
             else if (selectedPlan) {
-                // Filtrer par plan_id
+                // Filtrer par plan_id (logique front)
                 filteredProjets = filteredProjets.filter(
                     p => p.plan_id === parseInt(selectedPlan)
                 );
@@ -387,76 +348,88 @@ export class AnalyticDashboard extends Component {
                 }));
             }
             else {
-                // Pas de plan sélectionné => On affiche la liste des plans sous forme d'objets
+                // Aucune sélection => On affiche la liste des plans
                 this.state.projetsData = this.state.plansData.map(plan => ({
                     code: plan.name,
                     value: plan[selectedData],
+                    id: plan.id,
                 }));
             }
 
-            // Mettre à jour le tableau des projets
-            this.state.projetsTerminesCount = this.state.projetsTermines.length;
+            // 5) Projets en cours / terminés
+            this.state.projetsEnCours = filteredProjets.filter(p => p.pourcentage_avancement < 1);
+            this.state.projetsTermines = filteredProjets.filter(p => p.pourcentage_avancement >= 1);
             this.state.projetsEnCoursCount = this.state.projetsEnCours.length;
+            this.state.projetsTerminesCount = this.state.projetsTermines.length;
 
-            const tableBody = document.getElementById('projects-table-body');
-            tableBody.innerHTML = '';
+            // 6) Mettre à jour le tableau
+            this.updateProjectsTable(filteredProjets);
 
-            // Injection des lignes
-            filteredProjets.forEach(projet => {
-                const row = document.createElement('tr');
-
-                const codeProjetCell = document.createElement('td');
-                const codeProjetText = document.createElement('h6');
-                codeProjetText.classList.add('text-sm');
-                codeProjetText.textContent = projet.code_projet;
-                codeProjetCell.appendChild(codeProjetText);
-                row.appendChild(codeProjetCell);
-
-                const budgetCell = document.createElement('td');
-                budgetCell.classList.add('text-center');
-                budgetCell.textContent = projet.ca_final ? Math.round(projet.ca_final).toLocaleString() : '0';
-                row.appendChild(budgetCell);
-
-                const progressCell = document.createElement('td');
-                const progressWrapper = document.createElement('div');
-                progressWrapper.classList.add('progress-wrapper', 'w-75', 'mx-auto');
-                const progressBarContainer = document.createElement('div');
-                progressBarContainer.classList.add('progress');
-                const progressBar = document.createElement('div');
-                progressBar.classList.add('progress-bar', 'bg-gradient-info');
-                progressBar.style.width = `${(projet.pourcentage_avancement * 100).toFixed(0)}%`;
-                progressBarContainer.appendChild(progressBar);
-                progressWrapper.appendChild(progressBarContainer);
-                const progressText = document.createElement('small');
-                progressText.textContent = `${(projet.pourcentage_avancement * 100).toFixed(0)}%`;
-                progressWrapper.appendChild(progressText);
-                progressCell.appendChild(progressWrapper);
-                row.appendChild(progressCell);
-
-                // Clic sur la ligne => naviguer
-                row.addEventListener('click', () => {
-                    this.navigateToProjet(projet.id_code_project, projet.code_projet);
-                });
-
-                tableBody.appendChild(row);
-            });
-
-            // Générer le graphique
+            // 7) Générer le graph
             this.generateChart(selectedData);
 
         } catch (error) {
-            console.error("Erreur lors de la récupération des projets:", error);
+            console.error("Erreur loadProjets:", error);
         }
+    }
+
+    updateProjectsTable(listProjets) {
+        const tableBody = document.getElementById('projects-table-body');
+        if (!tableBody) return;
+
+        tableBody.innerHTML = '';
+        listProjets.forEach(projet => {
+            const row = document.createElement('tr');
+
+            // Code Projet
+            const codeCell = document.createElement('td');
+            const codeTxt = document.createElement('h6');
+            codeTxt.classList.add('text-sm');
+            codeTxt.textContent = projet.code_projet;
+            codeCell.appendChild(codeTxt);
+            row.appendChild(codeCell);
+
+            // Budget
+            const budgetCell = document.createElement('td');
+            budgetCell.classList.add('text-center');
+            budgetCell.textContent = projet.ca_final ? Math.round(projet.ca_final).toLocaleString() : '0';
+            row.appendChild(budgetCell);
+
+            // Avancement
+            const progressCell = document.createElement('td');
+            const progressWrapper = document.createElement('div');
+            progressWrapper.classList.add('progress-wrapper', 'w-75', 'mx-auto');
+            const progressBarContainer = document.createElement('div');
+            progressBarContainer.classList.add('progress');
+            const progressBar = document.createElement('div');
+            progressBar.classList.add('progress-bar', 'bg-gradient-info');
+            progressBar.style.width = `${(projet.pourcentage_avancement * 100).toFixed(0)}%`;
+            progressBarContainer.appendChild(progressBar);
+            progressWrapper.appendChild(progressBarContainer);
+            const progressText = document.createElement('small');
+            progressText.textContent = `${(projet.pourcentage_avancement * 100).toFixed(0)}%`;
+            progressWrapper.appendChild(progressText);
+            progressCell.appendChild(progressWrapper);
+            row.appendChild(progressCell);
+
+            // Clic => naviguer
+            row.addEventListener('click', () => {
+                this.navigateToProjet(projet.id_code_project, projet.code_projet);
+            });
+
+            tableBody.appendChild(row);
+        });
     }
 
     // ===========================================================
     // ================= Génération du graphique =================
     // ===========================================================
     generateChart(selectedDataLabel = "Résultat Chantier (CFA)") {
-        const ctx = document.getElementById('ResultatChart').getContext('2d');
+        const ctx = document.getElementById('ResultatChart')?.getContext('2d');
         const noDataMessage = document.getElementById('noDataMessage');
+        if (!ctx || !noDataMessage) return;
 
-        // Si un graphique existait, on le détruit
+        // Si un graphique existait déjà, on le détruit
         if (this.chart) {
             this.chart.destroy();
         }
@@ -468,7 +441,6 @@ export class AnalyticDashboard extends Component {
             return;
         }
 
-        // Filtrer les projets de valeur nulle
         let filteredProjets = this.state.projetsData.filter(p => p.value !== 0);
 
         // Correction si "Dépenses Cumulées"
@@ -572,17 +544,19 @@ export class AnalyticDashboard extends Component {
     // ================== Afficher projets =======================
     // ===========================================================
     showCompletedProjects() {
+        // Projets terminés: avancement >= 1
         this.action.doAction({
             type: 'ir.actions.act_window',
             name: 'Projets Terminés',
             res_model: 'analytic.dashboard',
             views: [[false, 'list'], [false, 'form']],
             target: 'current',
-            domain: [['pourcentage_avancement_stored', '<', 1]],
+            domain: [['pourcentage_avancement_stored', '>=', 1]],
         });
     }
 
     showOngoingProjects() {
+        // Projets en cours: avancement < 1
         this.action.doAction({
             type: 'ir.actions.act_window',
             name: 'Projets en Cours',
