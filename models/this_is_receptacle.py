@@ -496,33 +496,29 @@ class AnalyticDashboard(models.Model):
             'progression_moyenne': avg_progress,
         }
 
-    # ======================================
+    # ===============================
     # 7) Période "périodisée" -> RPC
-    # ======================================
-
-    def get_resultat_chantier_total_periodise(self, start=None, end=None, plan_id=None):
+    # ===============================
+    def get_resultat_chantier_total_periodise(self, start=None, end=None):
         """
-        Somme du 'resultat_chantier_cumule' calculée par la logique "périodisée"
-        (factures & dépenses filtrées), potentiellement filtrée par un plan_id.
+        Somme du 'resultat_chantier_cumule' calculé par la logique "périodisée"
+        (factures & dépenses filtrées).
         """
-        data = self.get_projets_periodises(start, end, plan_id=plan_id)
+        data = self.get_projets_periodises(start, end)
         return sum(d['resultat_chantier_cumule'] for d in data)
 
-    def get_progression_moyenne_periodise(self, start=None, end=None, plan_id=None):
+    def get_progression_moyenne_periodise(self, start=None, end=None):
         """
-        Moyenne du 'pourcentage_avancement' calculée par la logique "périodisée",
-        potentiellement filtrée par un plan_id.
+        Moyenne du 'pourcentage_avancement' calculé par la logique "périodisée".
         """
-        data = self.get_projets_periodises(start, end, plan_id=plan_id)
+        data = self.get_projets_periodises(start, end)
         if not data:
             return 0.0
         return sum(d['pourcentage_avancement'] for d in data) / len(data)
 
-
     # ===============================
     # 8) Opérations CRUD: projets
     # ===============================
-    
     def update_project(self, project_id, values):
         project = self.search([('name.id', '=', project_id)], limit=1)
         if project:
@@ -613,171 +609,3 @@ class AnalyticDashboard(models.Model):
                 'debours_comptable_cumule': p['debours_comptable_cumule'] or 0,
             })
         return projets_donnees
-
-    # ===============================
-    # 10) Export Excel
-    # ===============================
-    def export_to_excel(self):
-        """
-        Génère un fichier Excel avec les données des projets, regroupés par plan,
-        puis un bloc récap "Activité Cumulée, PLAN, %"...
-        """
-        output = io.BytesIO()
-        workbook = xlsxwriter.Workbook(output, {'in_memory': True})
-        worksheet = workbook.add_worksheet()
-
-        header_format = workbook.add_format({
-            'bold': True,
-            'bg_color': '#138d75',
-            'font_color': 'white',
-            'border': 1,
-            'align': 'center',
-            'valign': 'vcenter'
-        })
-        cell_format = workbook.add_format({
-            'border': 1,
-            'align': 'center',
-            'valign': 'vcenter'
-        })
-        highlight_format = workbook.add_format({
-            'bg_color': 'yellow',
-            'border': 1,
-            'align': 'center',
-            'valign': 'vcenter'
-        })
-        lowlight_format = workbook.add_format({
-            'bg_color': '#5dade2',
-            'border': 1,
-            'align': 'center',
-            'valign': 'vcenter'
-        })
-        total_format = workbook.add_format({
-            'bold': True,
-            'bg_color': '#f9f9f9',
-            'border': 1,
-            'align': 'center',
-            'valign': 'vcenter'
-        })
-        red_format = workbook.add_format({
-            'font_color': 'red',
-            'border': 1,
-            'align': 'center',
-            'valign': 'vcenter'
-        })
-
-        headers = [
-            'Code Projet', 'Libellé', 'Marché Initial', 'TS', 'CA Final',
-            'Fact Comptable Cumulées', 'OD Facture', 'Non Facturé',
-            'Trop Facturé', 'Activité Cumulée', '%avt',
-            'Débours Comptable Cumulé', 'ODA D', 'FFNP', 'Stocks',
-            'Provisions', 'Total Déboursés', 'Dépenses Cumulées',
-            'Débours Prévisionnels', 'Resultat Chantier'
-        ]
-
-        plans = self.env['account.analytic.plan'].search([])
-        row_num = 0
-
-        for plan in plans:
-            # Titre
-            worksheet.merge_range(row_num, 0, row_num, len(headers) - 1, f"Exploitation: {plan.name}", total_format)
-            row_num += 2
-
-            # En-têtes
-            for col_num, header in enumerate(headers):
-                worksheet.write(row_num, col_num, header, header_format)
-            row_num += 1
-
-            # Projets du plan
-            projets = self.search([('plan_id', '=', plan.id)])
-            for projet in projets:
-                worksheet.write(row_num, 0,  projet.name.name if projet.name else "", cell_format)
-                worksheet.write(row_num, 1,  projet.libelle or "", cell_format)
-                worksheet.write(row_num, 2,  projet.marche_initial, cell_format)
-                worksheet.write(row_num, 3,  projet.ts, cell_format)
-                worksheet.write(row_num, 4,  projet.ca_final, cell_format)
-                worksheet.write(row_num, 5,  projet.factures_cumulees, highlight_format)
-                worksheet.write(row_num, 6,  projet.od_facture, cell_format)
-                worksheet.write(row_num, 7,  projet.non_facture, cell_format)
-                worksheet.write(row_num, 8,  projet.trop_facture, cell_format)
-                worksheet.write(row_num, 9,  projet.activite_cumulee, cell_format)
-                worksheet.write(row_num, 10, projet.pourcentage_avancement * 100, lowlight_format)
-                worksheet.write(row_num, 11, projet.debours_comptable_cumule, highlight_format)
-                worksheet.write(row_num, 12, projet.oda_d, cell_format)
-                worksheet.write(row_num, 13, projet.ffnp, cell_format)
-                worksheet.write(row_num, 14, projet.stocks, cell_format)
-                worksheet.write(row_num, 15, projet.provisions, cell_format)
-                worksheet.write(row_num, 16, projet.total_debourses, cell_format)
-                worksheet.write(row_num, 17, projet.depenses_cumulees, cell_format)
-                worksheet.write(row_num, 18, projet.debours_previsionnels, cell_format)
-                worksheet.write(row_num, 19, projet.resultat_chantier_cumule, cell_format)
-                row_num += 1
-
-            # Totaux
-            total_marche_initial = sum(p.marche_initial for p in projets)
-            total_ts = sum(p.ts for p in projets)
-            total_ca_final = sum(p.ca_final for p in projets)
-            total_fact_cumul = sum(p.factures_cumulees for p in projets)
-            total_od_facture = sum(p.od_facture for p in projets)
-            total_non_facture = sum(p.non_facture for p in projets)
-            total_trop_facture = sum(p.trop_facture for p in projets)
-            total_activite_cumulee = sum(p.activite_cumulee for p in projets)
-            total_debours_comptable_cumule = sum(p.debours_comptable_cumule for p in projets)
-            total_oda_d = sum(p.oda_d for p in projets)
-            total_ffnp = sum(p.ffnp for p in projets)
-            total_stocks = sum(p.stocks for p in projets)
-            total_provisions = sum(p.provisions for p in projets)
-            total_total_debourses = sum(p.total_debourses for p in projets)
-            total_depenses_cumulees = sum(p.depenses_cumulees for p in projets)
-            total_debours_previsionnels = sum(p.debours_previsionnels for p in projets)
-            total_resultat_chantier_cumule = sum(p.resultat_chantier_cumule for p in projets)
-
-            if projets:
-                avg_pourcentage = sum(p.pourcentage_avancement * 100 for p in projets) / len(projets)
-            else:
-                avg_pourcentage = 0
-
-            worksheet.merge_range(row_num, 0, row_num, 1, f"RESULTAT OGOOUE {plan.name}", total_format)
-            worksheet.write(row_num, 2,  total_marche_initial, total_format)
-            worksheet.write(row_num, 3,  total_ts, total_format)
-            worksheet.write(row_num, 4,  total_ca_final, total_format)
-            worksheet.write(row_num, 5,  total_fact_cumul, total_format)
-            worksheet.write(row_num, 6,  total_od_facture, total_format)
-            worksheet.write(row_num, 7,  total_non_facture, total_format)
-            worksheet.write(row_num, 8,  total_trop_facture, total_format)
-            worksheet.write(row_num, 9,  total_activite_cumulee, total_format)
-            worksheet.write(row_num, 10, avg_pourcentage, total_format)
-            worksheet.write(row_num, 11, total_debours_comptable_cumule, total_format)
-            worksheet.write(row_num, 12, total_oda_d, total_format)
-            worksheet.write(row_num, 13, total_ffnp, total_format)
-            worksheet.write(row_num, 14, total_stocks, total_format)
-            worksheet.write(row_num, 15, total_provisions, total_format)
-            worksheet.write(row_num, 16, total_total_debourses, total_format)
-            worksheet.write(row_num, 17, total_depenses_cumulees, total_format)
-            worksheet.write(row_num, 18, total_debours_previsionnels, total_format)
-            worksheet.write(row_num, 19, total_resultat_chantier_cumule, total_format)
-
-            plan_objective = 0
-            plan_obj = self.env['dashboard.plan'].sudo().search([('name', '=', str(plan.id))], limit=1)
-            if plan_obj:
-                plan_objective = plan_obj.plan
-
-            if plan_objective:
-                pourcentage_activite_plan = (total_activite_cumulee / plan_objective) * 100
-            else:
-                pourcentage_activite_plan = 0
-
-            row_num += 2
-            col_offset = 4
-            worksheet.write(row_num, col_offset,     "Activité Cumulée", cell_format)
-            worksheet.write(row_num, col_offset + 1, total_activite_cumulee, cell_format)
-            worksheet.write(row_num, col_offset + 2, "", cell_format)
-            row_num += 1
-
-            worksheet.write(row_num, col_offset,     "PLAN", red_format)
-            worksheet.write(row_num, col_offset + 1, plan_objective, red_format)
-            worksheet.write(row_num, col_offset + 2, f"{round(pourcentage_activite_plan,2)}%", red_format)
-            row_num += 3
-
-        workbook.close()
-        output.seek(0)
-        return output.getvalue()

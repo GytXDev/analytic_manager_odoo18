@@ -33,6 +33,7 @@ h3 {
   margin: 10px;
   padding: 20px;
   text-align: center;
+  border-left: 5px solid transparent;
 }
 
 .card-header {
@@ -44,11 +45,75 @@ h3 {
   border-bottom: 1px solid #e0e0e0;
 }
 
+.analytic-card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  margin: 10px;
+  padding: 20px;
+  text-align: center;
+  border-left: 5px solid transparent;
+}
+
+.analytic-card-header {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+/* Effet hover */
+.analytic-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
 .card-body {
   font-size: 20px;
   font-weight: bold;
   color: #36426f;
   /* Gardé pour le contraste */
+}
+
+/* Bordures colorées pour chaque carte */
+.completed {
+  border-left-color: #28a745;
+  /* Vert */
+}
+
+.revenue {
+  border-left-color: #007bff;
+  /* Bleu */
+}
+
+.ongoing {
+  border-left-color: #fd7e14;
+  /* Orange */
+}
+
+.progress-card {
+  border-left-color: #6f42c1;
+  /* Violet */
+}
+
+/* Appliquer la couleur de la bordure uniquement aux icônes */
+.completed .analytic-card-header i {
+  color: #28a745 !important;
+  /* Vert */
+}
+
+.revenue .analytic-card-header i {
+  color: #007bff !important;
+  /* Bleu */
+}
+
+.ongoing .analytic-card-header i {
+  color: #fd7e14 !important;
+  /* Orange */
+}
+
+.progress-card .analytic-card-header i {
+  color: #6f42c1 !important;
+  /* Violet */
 }
 
 /* Tableau des analyses */
@@ -124,6 +189,8 @@ h3 {
   align-items: stretch;
   flex-wrap: wrap;
 }
+
+
 
 .col-lg-8,
 .col-lg-4 {

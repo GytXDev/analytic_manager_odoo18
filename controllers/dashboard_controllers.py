@@ -6,23 +6,26 @@ from odoo.http import request, content_disposition
 class DashboardControllers(http.Controller):
 
     @http.route('/dashboard/resultat_chantier_total', type='json', auth="user", website=True)
-    def get_resultat_chantier_total(self, start=None, end=None):
+    def get_resultat_chantier_total(self, start=None, end=None, plan_id=None):
         """
-        Calcule et retourne le résultat chantier total 
-        pour la période [start, end] (invoice_date).
+        Calcule et retourne le résultat chantier total
+        pour la période [start, end] (invoice_date),
+        filtré éventuellement par plan_id.
         """
         Dashboard = request.env['analytic.dashboard'].sudo()
-        total = Dashboard.get_resultat_chantier_total_periodise(start, end)
+        # On transmet plan_id à la fonction "périodisée"
+        total = Dashboard.get_resultat_chantier_total_periodise(start, end, plan_id)
         return {'resultat_chantier_total': total}
 
     @http.route('/dashboard/progression_moyenne', type='json', auth="user", website=True)
-    def get_progression_moyenne(self, start=None, end=None):
+    def get_progression_moyenne(self, start=None, end=None, plan_id=None):
         """
         Calcule la progression moyenne des projets 
-        pour la période [start, end] (invoice_date).
+        pour la période [start, end] (invoice_date),
+        filtré éventuellement par plan_id.
         """
         Dashboard = request.env['analytic.dashboard'].sudo()
-        prog = Dashboard.get_progression_moyenne_periodise(start, end)
+        prog = Dashboard.get_progression_moyenne_periodise(start, end, plan_id)
         return {'progression_moyenne': prog}
 
     @http.route('/dashboard/statistiques_projets', type='json', auth="user", website=True)
@@ -65,6 +68,15 @@ class DashboardControllers(http.Controller):
         Dashboard = request.env['analytic.dashboard'].sudo()
         result = Dashboard.get_all_plans()
         return {'status': 'success', 'data': result}
+
+    @http.route('/dashboard/liste_plans_periodise', type='json', auth='user', website=True)
+    def get_plans_periodise(self, start=None, end=None):
+        Dashboard = request.env['analytic.dashboard'].sudo()
+        data = Dashboard.get_plans_periodises(start, end)
+        return {
+            'status': 'success',
+            'data': data
+        }
 
     @http.route('/dashboard/update_project', type='json', auth="user", website=True)
     def update_project(self, id, **kwargs):

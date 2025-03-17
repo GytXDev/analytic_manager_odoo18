@@ -25,12 +25,28 @@ export class AnalyticDashboard extends Component {
 
         // Méthode pour initialiser le dashboard
         this.onClickUpdateDashboard = async () => {
+            console.log("Mise à jour du tableau de bord...");
+
             try {
+                // Lancer la mise à jour du dashboard
                 await rpc('/dashboard/update_dashboard', {});
+
+                // Exécuter les appels RPC en parallèle
+                const [projets, resultatTotal, progressionMoyenne, stats] = await Promise.all([
+                    this.loadProjets(),
+                    this.loadResultatChantierTotal(),
+                    this.loadProgressionMoyenne(),
+                    this.loadStatistiquesProjets()
+                ]);
+
+                // Générer les graphiques après avoir reçu toutes les données
+                this.generateChart();
             } catch (error) {
                 console.error("Erreur lors de l'appel RPC :", error);
             }
         };
+
+
 
         // Une fois le composant monté
         onMounted(async () => {
@@ -80,7 +96,11 @@ export class AnalyticDashboard extends Component {
         const planSelect = document.getElementById('planSelect');
         const dataSelect = document.getElementById('dataSelect');
         if (planSelect) {
-            planSelect.addEventListener("change", () => this.loadProjets());
+            planSelect.addEventListener("change", async () => {
+                await this.loadProjets();
+                await this.loadResultatChantierTotal();
+                await this.loadProgressionMoyenne();
+            });
         }
         if (dataSelect) {
             dataSelect.addEventListener("change", () => this.loadProjets());
@@ -104,14 +124,15 @@ export class AnalyticDashboard extends Component {
         const periodLabel = document.getElementById('period-label');
         const applyButton = document.querySelector('.btn-submit');
 
-        // Dates par défaut (mois en cours)
+        // Dates par défaut (année en cours)
         const today = new Date();
-        const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-        const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        const thisYearStart = new Date(today.getFullYear(), 0, 1);
+        const thisYearEnd = new Date(today.getFullYear(), 11, 31);
         const defaultDateFilter = {
-            start: thisMonthStart.toISOString().split('T')[0],
-            end: thisMonthEnd.toISOString().split('T')[0]
+            start: thisYearStart.toISOString().split('T')[0],
+            end: thisYearEnd.toISOString().split('T')[0]
         };
+
 
         // On positionne "this-year" par défaut
         if (periodSelector) {
@@ -199,6 +220,8 @@ export class AnalyticDashboard extends Component {
         this.loadProjets(dateFilter);
         this.loadResultatChantierTotal(dateFilter);
         this.loadProgressionMoyenne(dateFilter);
+        this.loadStatistiquesProjets();
+        this.generateChart();
     }
 
     // ===========================================================
@@ -215,8 +238,27 @@ export class AnalyticDashboard extends Component {
 
     async loadResultatChantierTotal(dateFilter = {}) {
         try {
-            const result = await rpc('/dashboard/resultat_chantier_total', dateFilter);
+            // Récupérer le plan sélectionné
+            const selectedPlan = document.getElementById('planSelect').value;
+
+            let planId = null;
+            // Si l'utilisateur a choisi un plan spécifique
+            if (selectedPlan && selectedPlan !== "plans_data" && selectedPlan !== "all_project_code") {
+                planId = parseInt(selectedPlan);
+            }
+
+            // Préparer les params pour le RPC
+            const params = {
+                start: dateFilter.start || null,
+                end: dateFilter.end || null,
+                plan_id: planId,
+            };
+
+            // Appel RPC en passant plan_id
+            const result = await rpc('/dashboard/resultat_chantier_total', params);
             const total = Math.round(result?.resultat_chantier_total || 0);
+
+            // Mettre à jour l'état
             this.state.resultatChantierTotal = total.toLocaleString();
         } catch (error) {
             console.error("Erreur lors de la récupération du résultat chantier total :", error);
@@ -225,16 +267,32 @@ export class AnalyticDashboard extends Component {
 
     async loadProgressionMoyenne(dateFilter = {}) {
         try {
-            const result = await rpc('/dashboard/progression_moyenne', dateFilter);
+            // Récupérer le plan sélectionné
+            const selectedPlan = document.getElementById('planSelect').value;
+
+            let planId = null;
+            if (selectedPlan && selectedPlan !== "plans_data" && selectedPlan !== "all_project_code") {
+                planId = parseInt(selectedPlan);
+            }
+
+            // Préparer les params pour le RPC
+            const params = {
+                start: dateFilter.start || null,
+                end: dateFilter.end || null,
+                plan_id: planId,
+            };
+
+            // Appel RPC en passant plan_id
+            const result = await rpc('/dashboard/progression_moyenne', params);
             const progression = result?.progression_moyenne || 0;
+
             if (typeof progression === 'number' && !isNaN(progression)) {
                 this.state.progressionMoyenne = (progression * 100).toFixed(2);
             } else {
                 this.state.progressionMoyenne = '0.00';
-                console.error("Progression moyenne invalide:", progression);
             }
         } catch (error) {
-            console.error("Erreur loadProgressionMoyenne:", error);
+            console.error("Erreur lors de la récupération de la progression moyenne :", error);
             this.state.progressionMoyenne = '0.00';
         }
     }
