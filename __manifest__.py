@@ -21,11 +21,10 @@
     ],
     'assets': {
         'web.assets_backend': [
-             # Chargement des bibliothèques tierces en premier
             'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js',
             'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css',
 
-            'ot_analytic_manager/static/src/js/analytic_dashboard.js',
+            'ot_analytic_manager/static/src/js/dashboard.js',
             'ot_analytic_manager/static/src/js/excel_analytic.js',
             'ot_analytic_manager/static/src/xml/dashboard.xml',
             'ot_analytic_manager/static/src/xml/excel_analytic.xml',

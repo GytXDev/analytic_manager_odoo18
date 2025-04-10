@@ -25,28 +25,12 @@ export class AnalyticDashboard extends Component {
 
         // Méthode pour initialiser le dashboard
         this.onClickUpdateDashboard = async () => {
-            console.log("Mise à jour du tableau de bord...");
-
             try {
-                // Lancer la mise à jour du dashboard
                 await rpc('/dashboard/update_dashboard', {});
-
-                // Exécuter les appels RPC en parallèle
-                const [projets, resultatTotal, progressionMoyenne, stats] = await Promise.all([
-                    this.loadProjets(),
-                    this.loadResultatChantierTotal(),
-                    this.loadProgressionMoyenne(),
-                    this.loadStatistiquesProjets()
-                ]);
-
-                // Générer les graphiques après avoir reçu toutes les données
-                this.generateChart();
             } catch (error) {
                 console.error("Erreur lors de l'appel RPC :", error);
             }
         };
-
-
 
         // Une fois le composant monté
         onMounted(async () => {
@@ -625,5 +609,4 @@ export class AnalyticDashboard extends Component {
         });
     }
 }
-
 registry.category('actions').add('dashboard_analytic', AnalyticDashboard);

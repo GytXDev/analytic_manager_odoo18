@@ -35,7 +35,10 @@
                                             <td><label for="od_facture" string="OD Facture"/></td>
                                             <td><label for="non_facture" string="Non Facturé"/></td>
                                             <td style="padding-right: 40px; padding-left: 20px;"><label for="trop_facture" string="Trop Facturé"/></td>
-                                            <td><label for="debours_previsionnels" string="Débours Prévisionnels"/></td>
+                                            <td><label for="reste_a_depense" string="Reste à Dépenser (RAD)"/></td>
+                                            <td>
+                                                <label for="est_chantier" string="Est un Chantier ?"/>
+                                            </td>
                                         </tr>
                                         <tr>
                                             <td><field name="marche_initial"/></td>
@@ -43,7 +46,10 @@
                                             <td><field name="od_facture"/></td>
                                             <td><field name="non_facture"/></td>
                                             <td style="padding-right: 40px; padding-left: 20px;"><field name="trop_facture"/></td>
-                                            <td><field name="debours_previsionnels"/></td>
+                                            <td><field name="reste_a_depense"/></td>
+                                            <td>
+                                                <field name="est_chantier" widget="boolean_toggle"/>
+                                            </td>
                                         </tr>
                                     </table>
                                 </group>
@@ -114,7 +120,7 @@
                     <field name="pourcentage_avancement" widget="percentage" optional="hide"/>
                     <field name="activite_cumulee" decoration-bf="1"/>
                     <field name="resultat_chantier_cumule" optional="hide"/>
-                    <field name="debours_previsionnels" optional="hide"/>
+                    <field name="reste_a_depense" optional="hide"/>
                 </list>
             </field>
         </record>

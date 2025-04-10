@@ -6,6 +6,30 @@
                     <i class="fas fa-file-export"></i>
                     Exporter vers Excel
                 </button>
+                <div class="analytic-manager style-switcher">
+                    <div class="analytic-manager style-switcher-toggler s-icon">
+                        <i class="fa fa-cog"></i>
+                    </div>
+                    <h3>Choisir une période</h3>
+                    <select id="period-selector-excel" class="analytic-manager period-dropdown">
+                        <option value="this-month">Ce Mois</option>
+                        <option value="last-month">M-1 : Mois Précédent</option>
+                        <option value="this-year">Année en cours</option>
+                        <option value="custom">Période Personnalisée</option>
+                    </select>
+                    <div id="date-range" class="analytic-manager hidden date-range">
+                        <div class="analytic-manager date-input">
+                            <label for="start-date">Du :</label>
+                            <input type="date" id="start-date" />
+                        </div>, 
+                        <div class="analytic-manager date-input">
+                            <label for="end-date">Au :</label>
+                            <input type="date" id="end-date" />
+                        </div>
+                        <button class="analytic-manager btn-submit">Appliquer</button>
+                    </div>
+                </div>
+
             </div>
             <t t-foreach="plans" t-as="plan" t-key="plan.id">
                 <h4>
@@ -95,13 +119,13 @@
                                     </span>
                                     <input t-if="projet.editing_provisions" type="number" t-model="projet.provisions" t-on-blur="() => { projet.editing_provisions = false; saveProjectData(projet, 'provisions', projet.provisions); }" />
                                 </td>
-                                <td class="lowlight"><t t-esc="(projet.total_debourses or 0)" /></td>
+                                <td class="lowlight"><t t-esc="(projet.depenses_reelles or 0)" /></td>
                                 <td class="lowlight"><t t-esc="(projet.depenses_cumulees or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
                                 <td class="edit-fields">
-                                    <span t-if="!projet.editing_debours_previsionnels" t-on-click="() => projet.editing_debours_previsionnels = true">
-                                        <t t-esc="(projet.debours_previsionnels or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" />
+                                    <span t-if="!projet.editing_reste_a_depense" t-on-click="() => projet.editing_reste_a_depense = true">
+                                        <t t-esc="(projet.reste_a_depense or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" />
                                     </span>
-                                    <input t-if="projet.editing_debours_previsionnels" type="number" t-model="projet.debours_previsionnels" t-on-blur="() => { projet.editing_debours_previsionnels = false; saveProjectData(projet, 'debours_previsionnels', projet.debours_previsionnels); }" />
+                                    <input t-if="projet.editing_reste_a_depense" type="number" t-model="projet.reste_a_depense" t-on-blur="() => { projet.editing_reste_a_depense = false; saveProjectData(projet, 'reste_a_depense', projet.reste_a_depense); }" />
                                 </td>
                                 <td class="lowlight"><t t-esc="(projet.resultat_chantier_cumule or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
                             </tr>
@@ -127,9 +151,9 @@
                             <td class="edit-fields"><t t-esc="(plan.total_ffnp or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
                             <td class="edit-fields"><t t-esc="(plan.total_stocks or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
                             <td class="edit-fields"><t t-esc="(plan.total_provisions or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
-                            <td class="lowlight"><t t-esc="(plan.total_total_debourses or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="lowlight"><t t-esc="(plan.total_depenses_reelles or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
                             <td class="lowlight"><t t-esc="(plan.total_depenses_cumulees or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
-                            <td class="edit-fields"><t t-esc="(plan.total_debours_previsionnels or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
+                            <td class="edit-fields"><t t-esc="(plan.total_reste_a_depense or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
                             <td class="lowlight"><t t-esc="(plan.total_resultat_chantier_cumule or 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 })" /></td>
                         </tr>
                     </tfoot>

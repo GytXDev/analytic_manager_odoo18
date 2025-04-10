@@ -24,6 +24,10 @@ class AnalyticDashboard(models.Model):
         store=False,
         readonly=True
     )
+    est_chantier = fields.Boolean(
+        string="Est-ce un chantier ?",
+        help="Cochez si ce projet analytique concerne un chantier"
+    )
     libelle = fields.Char("Libellé")
     date = fields.Date(
         'Date',
@@ -42,11 +46,16 @@ class AnalyticDashboard(models.Model):
     factures_cumulees = fields.Float("Factures Cumulées", compute='_compute_factures_cumulees')
     non_facture = fields.Float("Non Facturé")
     depenses_cumulees = fields.Float("Dépenses Cumulées", compute='_compute_depenses_cumulees')
-    debours_previsionnels = fields.Float("Débours Prévisionnels")
+    reste_a_depense = fields.Float("Reste à Dépenser (RAD)")
     debours_comptable_cumule = fields.Float("Débours comptable Cumulé", compute='_compute_debours_comptable_cumule')
-    total_debourses = fields.Float("Total Déboursés", compute='_compute_total_debourses')
-    trop_facture = fields.Float("Trop Facturé", compute='_compute_trop_facture')
-
+    depenses_reelles = fields.Float("Dépenses Réelles", compute='_compute_depenses_reelles')
+    trop_facture = fields.Float(
+        "Trop Facturé",
+        compute="_compute_trop_facture",
+        inverse="_inverse_trop_facture",
+        store=True,
+        readonly=False
+    )
     od_facture = fields.Float("Opérations Diverses Facturées")
     oda_d = fields.Float("Ordres Divers d'Achats Décaissés")
     ffnp = fields.Float("Factures Fournisseurs Non Parvenues")
@@ -155,7 +164,7 @@ class AnalyticDashboard(models.Model):
     @api.depends('debours_comptable_cumule', 'oda_d', 'ffnp', 'stocks', 'provisions')
     def _compute_depenses_cumulees(self):
         """
-        Dépenses cumulées = Deb Compta Cumulées + ODA D + Fact. Four. Non Parvenues + Stocks + Provisions
+        Dépenses cumulées = Deb Compta Cumulées + ODA D + Fact. Four. Non Parvenues - Stocks + Provisions
         (sans date filtrée).
         """
         for record in self:
@@ -163,15 +172,15 @@ class AnalyticDashboard(models.Model):
                 (record.debours_comptable_cumule or 0)
                 + (record.oda_d or 0)
                 + (record.ffnp or 0)
-                + (record.stocks or 0)
+                - (record.stocks or 0)
                 + (record.provisions or 0),
                 2
             )
 
     @api.depends('depenses_cumulees')
-    def _compute_total_debourses(self):
+    def _compute_depenses_reelles(self):
         for record in self:
-            record.total_debourses = record.depenses_cumulees
+            record.depenses_reelles = record.depenses_cumulees
 
     @api.depends('name')
     def _compute_factures_cumulees(self):
@@ -195,37 +204,71 @@ class AnalyticDashboard(models.Model):
             else:
                 record.factures_cumulees = 0.0
 
-    @api.depends('factures_cumulees', 'od_facture', 'non_facture', 'trop_facture')
+    @api.depends(
+        'factures_cumulees', 'od_facture', 'non_facture', 'trop_facture',
+        'ca_final', 'depenses_reelles', 'reste_a_depense',
+        'est_chantier'
+    )
     def _compute_activite_cumulee(self):
         for record in self:
-            record.activite_cumulee = round(
-                (record.factures_cumulees or 0)
-                + (record.od_facture or 0)
-                + (record.non_facture or 0)
-                + (record.trop_facture or 0),
-                2
-            )
-
-    @api.depends('debours_comptable_cumule', 'oda_d', 'ca_final',
-                 'total_debourses', 'depenses_cumulees', 'factures_cumulees', 'od_facture')
-    def _compute_trop_facture(self):
-        """
-        Calcule la "Trop Facturé" de manière custom (ex: basé sur un ratio).
-        """
-        for record in self:
-            if record.debours_previsionnels == 0 or record.total_debourses == 0 or record.factures_cumulees == 0:
-                record.trop_facture = 0.0
-            else:
-                total_debourses_previsionnels = record.total_debourses - record.debours_previsionnels
-                if total_debourses_previsionnels != 0:
-                    val = (record.ca_final * (record.total_debourses / total_debourses_previsionnels)) \
-                           - record.factures_cumulees - record.od_facture
-                    if val > 0:
-                        record.trop_facture = 0.0
+            # CAS CHANTIER
+            if record.est_chantier:
+                # On évite la division par zéro
+                if record.reste_a_depense != 0 and record.depenses_reelles != 0:
+                    denominateur = record.depenses_reelles - record.reste_a_depense
+                    if denominateur != 0:
+                        val = (record.ca_final * record.depenses_reelles) / denominateur
+                        record.activite_cumulee = round(val, 2)
                     else:
-                        record.trop_facture = val
+                        record.activite_cumulee = 0.0
+                else:
+                    record.activite_cumulee = 0.0
+            # CAS GÉNÉRAL
+            else:
+                record.activite_cumulee = round(
+                    (record.factures_cumulees or 0.0)
+                    + (record.od_facture or 0.0)
+                    + (record.non_facture or 0.0)
+                    + (record.trop_facture or 0.0),
+                    2
+                )
+
+    @api.depends(
+        'reste_a_depense', 'depenses_reelles',
+        'factures_cumulees', 'ca_final', 'od_facture',
+        'est_chantier'
+    )
+    def _compute_trop_facture(self):
+        for record in self:
+            # CAS CHANTIER => appliquer la nouvelle formule
+            if record.est_chantier:
+                if (record.reste_a_depense != 0 
+                        and record.depenses_reelles != 0
+                        and record.factures_cumulees != 0):
+                    total_reste_a_depense = record.depenses_reelles - record.reste_a_depense
+                    if total_reste_a_depense != 0:
+                        val = ((record.ca_final or 0.0)
+                            * (record.depenses_reelles / total_reste_a_depense)
+                            ) - (record.factures_cumulees or 0.0) - (record.od_facture or 0.0)
+                        record.trop_facture = val if val < 0 else 0.0
+                    else:
+                        record.trop_facture = 0.0
                 else:
                     record.trop_facture = 0.0
+
+            # CAS GÉNÉRAL => aucune formule
+            # => on n’écrase pas la valeur existante, 
+            #    donc on NE fait rien (pas d’affectation).
+            else:
+                pass
+
+    def _inverse_trop_facture(self):
+        """ Permet de rendre trop_facture modifiable dans le cas général. 
+            (Sans rien faire de plus ici.)
+        """
+        pass
+
+
 
     @api.depends('activite_cumulee', 'depenses_cumulees')
     def _compute_resultat_chantier_cumule(self):
@@ -320,7 +363,7 @@ class AnalyticDashboard(models.Model):
             debours_cumul = dash._debours_comptable_periodise(start, end)
 
             # On reconstitue la "dépense" + "activité"
-            depenses = debours_cumul + dash.oda_d + dash.ffnp + dash.stocks + dash.provisions
+            depenses = debours_cumul + dash.oda_d + dash.ffnp - dash.stocks + dash.provisions
             ca_fin = (dash.marche_initial + dash.ts)
             activite = fact_cumul + dash.od_facture + dash.non_facture + dash.trop_facture
             result_chant = activite + depenses
@@ -427,7 +470,7 @@ class AnalyticDashboard(models.Model):
                 ca_fin = (dash.marche_initial or 0.0) + (dash.ts or 0.0)
 
                 activite = fact_cum + od + non_fact + trop_fact
-                depenses = deb_cum + dash.oda_d + dash.ffnp + dash.stocks + dash.provisions
+                depenses = deb_cum + dash.oda_d + dash.ffnp - dash.stocks + dash.provisions
 
                 total_factures += fact_cum
                 total_debours += deb_cum
@@ -574,8 +617,8 @@ class AnalyticDashboard(models.Model):
                 'ffnp': p.ffnp,
                 'stocks': p.stocks,
                 'provisions': p.provisions,
-                'total_debourses': p.total_debourses,
-                'debours_previsionnels': p.debours_previsionnels,
+                'depenses_reelles': p.depenses_reelles,
+                'reste_a_depense': p.reste_a_depense,
                 'debours_comptable_cumule': p.debours_comptable_cumule,
             })
         return projets_data
@@ -608,8 +651,8 @@ class AnalyticDashboard(models.Model):
                 'ffnp': p['ffnp'] or 0,
                 'stocks': p['stocks'] or 0,
                 'provisions': p['provisions'] or 0,
-                'total_debourses': p['total_debourses'] or 0,
-                'debours_previsionnels': p['debours_previsionnels'] or 0,
+                'depenses_reelles': p['depenses_reelles'] or 0,
+                'reste_a_depense': p['reste_a_depense'] or 0,
                 'debours_comptable_cumule': p['debours_comptable_cumule'] or 0,
             })
         return projets_donnees
@@ -706,9 +749,9 @@ class AnalyticDashboard(models.Model):
                 worksheet.write(row_num, 13, projet.ffnp, cell_format)
                 worksheet.write(row_num, 14, projet.stocks, cell_format)
                 worksheet.write(row_num, 15, projet.provisions, cell_format)
-                worksheet.write(row_num, 16, projet.total_debourses, cell_format)
+                worksheet.write(row_num, 16, projet.depenses_reelles, cell_format)
                 worksheet.write(row_num, 17, projet.depenses_cumulees, cell_format)
-                worksheet.write(row_num, 18, projet.debours_previsionnels, cell_format)
+                worksheet.write(row_num, 18, projet.reste_a_depense, cell_format)
                 worksheet.write(row_num, 19, projet.resultat_chantier_cumule, cell_format)
                 row_num += 1
 
@@ -726,9 +769,9 @@ class AnalyticDashboard(models.Model):
             total_ffnp = sum(p.ffnp for p in projets)
             total_stocks = sum(p.stocks for p in projets)
             total_provisions = sum(p.provisions for p in projets)
-            total_total_debourses = sum(p.total_debourses for p in projets)
+            total_depenses_reelles = sum(p.depenses_reelles for p in projets)
             total_depenses_cumulees = sum(p.depenses_cumulees for p in projets)
-            total_debours_previsionnels = sum(p.debours_previsionnels for p in projets)
+            total_reste_a_depense = sum(p.reste_a_depense for p in projets)
             total_resultat_chantier_cumule = sum(p.resultat_chantier_cumule for p in projets)
 
             if projets:
@@ -751,9 +794,9 @@ class AnalyticDashboard(models.Model):
             worksheet.write(row_num, 13, total_ffnp, total_format)
             worksheet.write(row_num, 14, total_stocks, total_format)
             worksheet.write(row_num, 15, total_provisions, total_format)
-            worksheet.write(row_num, 16, total_total_debourses, total_format)
+            worksheet.write(row_num, 16, total_depenses_reelles, total_format)
             worksheet.write(row_num, 17, total_depenses_cumulees, total_format)
-            worksheet.write(row_num, 18, total_debours_previsionnels, total_format)
+            worksheet.write(row_num, 18, total_reste_a_depense, total_format)
             worksheet.write(row_num, 19, total_resultat_chantier_cumule, total_format)
 
             plan_objective = 0
