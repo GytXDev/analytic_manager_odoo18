@@ -134,14 +134,35 @@ class DashboardControllers(http.Controller):
             plan_model.create({'name': str(plan_id), 'plan': plan})
             return {'status': 'success', 'message': 'Plan créé avec succès'}
 
+    # @http.route('/dashboard/export_to_excel', type='http', auth="user", website=True)
+    # def export_to_excel(self):
+    #     """
+    #     Génère un fichier Excel (XLSX) avec les données des projets 
+    #     et le renvoie en tant que réponse HTTP.
+    #     """
+    #     dashboard_env = request.env['analytic.dashboard'].sudo()
+    #     output = dashboard_env.export_to_excel()
+
+    #     filename = 'Resultats_Analytique.xlsx'
+    #     headers = [
+    #         ('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+    #         ('Content-Disposition', content_disposition(filename))
+    #     ]
+    #     return request.make_response(output, headers)
+    
     @http.route('/dashboard/export_to_excel', type='http', auth="user", website=True)
-    def export_to_excel(self):
+    def export_to_excel(self, **kwargs):
         """
         Génère un fichier Excel (XLSX) avec les données des projets 
-        et le renvoie en tant que réponse HTTP.
+        filtrées éventuellement par la période [start, end].
         """
+        # 1) Récupérer start, end
+        start = kwargs.get('start')  # ex: '2025-04-01'
+        end = kwargs.get('end')      # ex: '2025-04-30'
+
         dashboard_env = request.env['analytic.dashboard'].sudo()
-        output = dashboard_env.export_to_excel()
+        # 2) Appel à la méthode d'export, en passant start, end
+        output = dashboard_env.export_to_excel(start, end)
 
         filename = 'Resultats_Analytique.xlsx'
         headers = [

@@ -21,7 +21,7 @@
                         <div class="analytic-manager date-input">
                             <label for="start-date">Du :</label>
                             <input type="date" id="start-date" />
-                        </div>, 
+                        </div>
                         <div class="analytic-manager date-input">
                             <label for="end-date">Au :</label>
                             <input type="date" id="end-date" />
@@ -31,6 +31,7 @@
                 </div>
 
             </div>
+            
             <t t-foreach="plans" t-as="plan" t-key="plan.id">
                 <h4>
                     <t t-esc="plan.name" />
@@ -54,9 +55,9 @@
                             <th>FFNP</th>
                             <th>Stocks</th>
                             <th>Provisions</th>
-                            <th>Total Déboursés</th>
+                            <th>Dépenses Réelles</th>
                             <th>Dépenses Cumulées</th>
-                            <th>Débours Prévisionnels</th>
+                            <th>Reste à Dépenser</th>
                             <th>Resultat Chantier</th>
                         </tr>
                     </thead>
