@@ -1,4 +1,3 @@
-<!-- analytic_manager\views\analytic_dashboard_views.xml -->
 <odoo>
     <data>
 
@@ -11,7 +10,6 @@
                     <sheet>
                         <group colspan="2">
                             <group style="display: flex; flex-direction: column; gap: 20px;">
-                                <!-- Titre Name -->
                                 <div style="display: flex; flex-direction: column; gap: 5px;">
                                     <label for="name" style="font-size: 1rem; font-weight: normal; color: #555;">Nom :</label>
                                     <h1 style="font-size: 1.2rem; font-weight: bold; color: #333; margin-bottom: 20px;">
@@ -25,81 +23,81 @@
                             </group>
                         </group>
                         <notebook>
-                            <!-- Page 1 : Champs à renseigner -->
                             <page string="Champs à renseigner">
                                 <group>
                                     <table class="oe_form_table">
                                         <tr>
-                                            <td><label for="marche_initial" string="Marche Initial"/></td>
-                                            <td><label for="ts" string="TS"/></td>
-                                            <td><label for="od_facture" string="OD Facture"/></td>
-                                            <td><label for="non_facture" string="Non Facturé"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="trop_facture" string="Trop Facturé"/></td>
-                                            <td><label for="reste_a_depense" string="Reste à Dépenser (RAD)"/></td>
-                                            <td>
-                                                <label for="est_chantier" string="Est un Chantier ?"/>
-                                            </td>
+                                            <td><label for="marche_initial"/></td>
+                                            <td><label for="ts"/></td>
+                                            <td><label for="od_facture"/></td>
+                                            <td><label for="non_facture"/></td>
+                                            <td><label for="trop_facture"/></td>
+                                            <td><label for="reste_a_depense"/></td>
+                                            <td><label for="est_chantier"/></td>
                                         </tr>
                                         <tr>
                                             <td><field name="marche_initial"/></td>
                                             <td><field name="ts"/></td>
                                             <td><field name="od_facture"/></td>
                                             <td><field name="non_facture"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="trop_facture"/></td>
+                                            <td><field name="trop_facture"/></td>
                                             <td><field name="reste_a_depense"/></td>
-                                            <td>
-                                                <field name="est_chantier" widget="boolean_toggle"/>
-                                            </td>
+                                            <td><field name="est_chantier" widget="boolean_toggle"/></td>
                                         </tr>
                                     </table>
                                 </group>
                             </page>
 
-                            <!-- Page 2 : Champs à supplémentaires -->
                             <page string="Champs supplémentaires">
                                 <group>
                                     <table class="oe_form_table">
                                         <tr>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="oda_d" string="Ordres Divers d'Achats Décaissés"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="ffnp" string="Factures Fournisseurs Non Parvenues"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="provisions" string="Provisions"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="stocks" string="Stocks"/></td>
+                                            <td><label for="oda_d"/></td>
+                                            <td><label for="ffnp"/></td>
+                                            <td><label for="provisions"/></td>
+                                            <td><label for="stocks"/></td>
                                         </tr>
                                         <tr>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="oda_d"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="ffnp"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="provisions"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;" ><field name="stocks"/></td>
+                                            <td><field name="oda_d"/></td>
+                                            <td><field name="ffnp"/></td>
+                                            <td><field name="provisions"/></td>
+                                            <td><field name="stocks"/></td>
                                         </tr>
                                     </table>
                                 </group>
                             </page>
 
-                            <!-- Page 3 : Champs calculés -->
                             <page string="Champs calculés">
                                 <group>
                                     <table class="oe_form_table">
                                         <tr>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="ca_final" string="CA Final"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="factures_cumulees" string="Factures Cumulées"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="depenses_cumulees" string="Dépenses Cumulées"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;">  <label for="depenses_reelles" string="Dépenses Réelles"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="activite_cumulee" string="Activité Cumulée"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><label for="pourcentage_avancement" string="Pourcentage Avancement"/></td>
-                                            <td style="padding-left: 20px;"><label for="resultat_chantier_cumule" string="Résultat Chantier Cumulé"/></td>
+                                            <td><label for="ca_final"/></td>
+                                            <td><label for="factures_cumulees"/></td>
+                                            <td><label for="depenses_cumulees"/></td>
+                                            <td><label for="depenses_reelles"/></td>
+                                            <td><label for="activite_cumulee"/></td>
+                                            <td><label for="pourcentage_avancement"/></td>
+                                            <td><label for="resultat_chantier_cumule"/></td>
                                         </tr>
                                         <tr>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="ca_final" readonly="1"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="factures_cumulees" readonly="1"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="depenses_cumulees" readonly="1"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="depenses_reelles" readonly="1"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="activite_cumulee" readonly="1"/></td>
-                                            <td style="padding-right: 40px; padding-left: 20px;"><field name="pourcentage_avancement" widget="percentage" readonly="1"/></td>
-                                            <td style="padding-left: 20px;"><field name="resultat_chantier_cumule" readonly="1"/></td>
+                                            <td><field name="ca_final" readonly="1"/></td>
+                                            <td><field name="factures_cumulees" readonly="1"/></td>
+                                            <td><field name="depenses_cumulees" readonly="1"/></td>
+                                            <td><field name="depenses_reelles" readonly="1"/></td>
+                                            <td><field name="activite_cumulee" readonly="1"/></td>
+                                            <td><field name="pourcentage_avancement" widget="percentage" readonly="1"/></td>
+                                            <td><field name="resultat_chantier_cumule" readonly="1"/></td>
                                         </tr>
                                     </table>
                                 </group>
                             </page>
+
+                            <page string="Dépenses du Projet">
+                                <field name="expense_move_lines" nolabel="1">
+                                   
+                                </field>
+                            </page>
+
                         </notebook>
                     </sheet>
                 </form>
@@ -113,7 +111,7 @@
             <field name="arch" type="xml">
                 <list string="Vues Analytiques">
                     <field name="plan_id" string="Exploitation"/>
-                    <field name="code_projet" string="Code Projet"/>
+                    <field name="code_projet"/>
                     <field name="libelle" optional="hide"/>
                     <field name="marche_initial"/>
                     <field name="ts" widget="monetary" options="{'currency_field': 'company_currency_id'}" optional="hide"/>

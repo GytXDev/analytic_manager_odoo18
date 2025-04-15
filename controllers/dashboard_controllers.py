@@ -164,9 +164,21 @@ class DashboardControllers(http.Controller):
         # 2) Appel à la méthode d'export, en passant start, end
         output = dashboard_env.export_to_excel(start, end)
 
-        filename = 'Resultats_Analytique.xlsx'
+        # 3) Construire un nom de fichier dynamique
+        # Si on a à la fois start et end, on les insère dans le nom du fichier
+        # Sinon, on met un nom générique
+        if start and end:
+            filename = f'Resultats_Analytique_{start}_{end}.xlsx'
+        elif start and not end:
+            filename = f'Resultats_Analytique_{start}.xlsx'
+        elif end and not start:
+            filename = f'Resultats_Analytique_jusquau_{end}.xlsx'
+        else:
+            filename = 'Resultats_Analytique.xlsx'
+
         headers = [
             ('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
             ('Content-Disposition', content_disposition(filename))
         ]
         return request.make_response(output, headers)
+

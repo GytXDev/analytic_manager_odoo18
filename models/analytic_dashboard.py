@@ -81,6 +81,15 @@ class AnalyticDashboard(models.Model):
         store=False
     )
 
+    expense_move_lines = fields.One2many(
+        comodel_name='account.move.line',
+        compute='_compute_expense_move_lines',
+        string='Lignes de dépenses',
+        store=False
+    )
+
+
+
     _sql_constraints = [
         ('unique_analytic_account', 'unique(name)', 'Un tableau analytique existe déjà pour ce projet !')
     ]
@@ -88,6 +97,20 @@ class AnalyticDashboard(models.Model):
     # ===============================
     # 2) Création & onchange
     # ===============================
+
+    def _compute_expense_move_lines(self):
+        for record in self:
+            if record.name:
+                lines = self.env['account.move.line'].search([
+                    ('analytic_distribution', 'in', [record.name.id]),
+                    ('move_id.move_type', 'in', ['in_invoice', 'in_refund']),
+                    ('move_id.state', '=', 'posted'),
+                ])
+                record.expense_move_lines = lines
+            else:
+                record.expense_move_lines = self.env['account.move.line']
+
+
     @api.model
     def create(self, vals):
         if 'name' in vals:
@@ -373,14 +396,22 @@ class AnalyticDashboard(models.Model):
             debours_cumul = dash._debours_comptable_periodise(start, end)
 
             # Reconstituer la dépense
-            depenses = debours_cumul + dash.oda_d + dash.ffnp - dash.stocks + dash.provisions
+            depenses = (
+                debours_cumul  # filtré
+                + (dash.oda_d or 0.0)
+                + (dash.ffnp or 0.0)
+                - (dash.stocks or 0.0)
+                + (dash.provisions or 0.0)
+            )
             ca_fin = (dash.marche_initial or 0.0) + (dash.ts or 0.0)
+
+            depenses_reelles = depenses
 
             # Calcul de l'activité selon le type de projet
             if dash.est_chantier:
                 activite = dash._compute_activite_chantier(
                     ca_final=ca_fin,
-                    depenses_reelles=dash.depenses_reelles,
+                    depenses_reelles= depenses_reelles,
                     reste_a_depense=dash.reste_a_depense
                 )
             else:
@@ -411,6 +442,7 @@ class AnalyticDashboard(models.Model):
                 'factures_cumulees': fact_cum,
                 'debours_comptable_cumule': debours_cumul,
                 'depenses_cumulees': depenses,
+                'depenses_reelles': depenses_reelles,
                 'activite_cumulee': activite,
                 'ca_final': ca_fin,
                 'resultat_chantier_cumule': result_chant,
@@ -469,7 +501,7 @@ class AnalyticDashboard(models.Model):
         }
 
     def get_plans_periodises(self, start=None, end=None):
-        # Correct: on prend tous les plans enfants
+        # Récupère tous les plans enfants
         Plan = self.env['account.analytic.plan'].search([
             '|',
             ('parent_id', '!=', False),
@@ -491,29 +523,38 @@ class AnalyticDashboard(models.Model):
                 fact_cum = dash._factures_cumulees_periodise(start, end)
                 deb_cum = dash._debours_comptable_periodise(start, end)
 
+                ca_fin = (dash.marche_initial or 0.0) + (dash.ts or 0.0)
                 od = dash.od_facture or 0.0
                 non_fact = dash.non_facture or 0.0
                 trop_fact = dash.trop_facture or 0.0
-                ca_fin = (dash.marche_initial or 0.0) + (dash.ts or 0.0)
 
-                depenses = deb_cum + dash.oda_d + dash.ffnp - dash.stocks + dash.provisions
-                total_depenses += depenses
+                # Dépenses filtrées (seul debours est filtré, les autres non)
+                depenses = (
+                    deb_cum
+                    + (dash.oda_d or 0.0)
+                    + (dash.ffnp or 0.0)
+                    - (dash.stocks or 0.0)
+                    + (dash.provisions or 0.0)
+                )
+                depenses_reelles = depenses
 
-                # Calcul conditionnel pour l'activité
+                # Calcul de l'activité chantier ou générale
                 if dash.est_chantier:
                     activite = dash._compute_activite_chantier(
                         ca_final=ca_fin,
-                        depenses_reelles=dash.depenses_reelles,
+                        depenses_reelles=depenses_reelles,
                         reste_a_depense=dash.reste_a_depense
                     )
                 else:
                     activite = round(fact_cum + od + non_fact + trop_fact, 2)
 
+                # Cumuls
                 total_factures += fact_cum
                 total_debours += deb_cum
                 total_od += od
                 total_ca_final += ca_fin
                 total_activite += activite
+                total_depenses += depenses
 
             plan_results.append({
                 'id': plan.id,
@@ -526,6 +567,7 @@ class AnalyticDashboard(models.Model):
             })
 
         return plan_results
+
 
     # ===============================
     # 6) Statistiques & indicateurs
@@ -697,9 +739,6 @@ class AnalyticDashboard(models.Model):
     # ===============================
 
     def export_to_excel(self, start=None, end=None):
-        """
-        Génère un fichier Excel AVEC la logique de période (start, end).
-        """
         output = io.BytesIO()
         workbook = xlsxwriter.Workbook(output, {'in_memory': True})
         worksheet = workbook.add_worksheet()
@@ -725,59 +764,52 @@ class AnalyticDashboard(models.Model):
             'Reste à Dépenser', 'Resultat Chantier'
         ]
 
-        # 1) Récupérer la liste des plans (ex. seulement plans feuilles)
         plans = self.env['account.analytic.plan'].search([
-            '|',
-            ('parent_id', '!=', False),
-            ('children_ids', '=', False),
+            '|', ('parent_id', '!=', False), ('children_ids', '=', False)
         ])
 
         row_num = 0
 
         for plan in plans:
-            # Titre du plan
             worksheet.merge_range(
                 row_num, 0, row_num, len(headers)-1,
                 f"Exploitation: {plan.name}", header_format
             )
             row_num += 2
 
-            # Écrire les en-têtes
             for col_num, header in enumerate(headers):
                 worksheet.write(row_num, col_num, header, header_format)
             row_num += 1
 
-            # 2) Projets du plan => "périodisés"
             dashes = self.search([('plan_id', '=', plan.id)])
 
-            # Variables de cumul
-            total_marche_initial = 0.0
-            total_ts = 0.0
-            total_fact_cumul = 0.0
-            total_od_facture = 0.0
-            total_non_facture = 0.0
-            total_trop_facture = 0.0
-            total_activite = 0.0
-            total_debours_comptable = 0.0
-            total_depenses = 0.0
-            total_ca_final = 0.0
+            # Totaux initiaux
+            total_marche_initial = total_ts = total_ca_final = 0.0
+            total_fact_cumul = total_od_facture = total_non_facture = 0.0
+            total_trop_facture = total_activite = total_debours_comptable = 0.0
+            total_depenses = total_result_chant = 0.0
             total_reste_a_depense = 0.0
-            total_result_chant = 0.0
-            total_depenses_reelles = 0.0
-            # (tes totaux)
+
+            pourcentages = []
 
             for dash in dashes:
-                # Calcul "périodisé"
                 fact_cum = dash._factures_cumulees_periodise(start, end)
                 deb_cum = dash._debours_comptable_periodise(start, end)
 
                 ca_fin = (dash.marche_initial or 0.0) + (dash.ts or 0.0)
-                depenses = deb_cum + dash.oda_d + dash.ffnp - dash.stocks + dash.provisions
+                depenses = (
+                    deb_cum
+                    + (dash.oda_d or 0.0)
+                    + (dash.ffnp or 0.0)
+                    - (dash.stocks or 0.0)
+                    + (dash.provisions or 0.0)
+                )
+                depenses_reelles = depenses
 
                 if dash.est_chantier:
                     activite = dash._compute_activite_chantier(
                         ca_final=ca_fin,
-                        depenses_reelles=dash.depenses_reelles,
+                        depenses_reelles=depenses_reelles,
                         reste_a_depense=dash.reste_a_depense
                     )
                 else:
@@ -789,33 +821,35 @@ class AnalyticDashboard(models.Model):
                     )
 
                 result_chant = activite + depenses
-                avancement = 0.0
-                if ca_fin:
-                    avancement = round(activite / ca_fin, 2)
+                avancement = round((activite / ca_fin) * 100, 2) if ca_fin else 0.0
+                pourcentages.append(avancement)
 
-                # Écrire la ligne projet
-                worksheet.write(row_num, 0, dash.name.name or "",   cell_format)
-                worksheet.write(row_num, 1, dash.libelle or "",     cell_format)
-                worksheet.write(row_num, 2, dash.marche_initial,    cell_format)
-                worksheet.write(row_num, 3, dash.ts,                cell_format)
-                worksheet.write(row_num, 4, ca_fin,                 cell_format)
-                worksheet.write(row_num, 5, fact_cum,               cell_format)
-                worksheet.write(row_num, 6, dash.od_facture or 0.0, cell_format)
-                worksheet.write(row_num, 7, dash.non_facture or 0.0,cell_format)
-                worksheet.write(row_num, 8, dash.trop_facture or 0.0,cell_format)
-                worksheet.write(row_num, 9, activite,               cell_format)
-                worksheet.write(row_num, 10, avancement * 100,      cell_format)
-                worksheet.write(row_num, 11, deb_cum,               cell_format)
-                worksheet.write(row_num, 12, dash.oda_d or 0.0,     cell_format)
-                worksheet.write(row_num, 13, dash.ffnp or 0.0,      cell_format)
-                worksheet.write(row_num, 14, dash.stocks or 0.0,    cell_format)
-                worksheet.write(row_num, 15, dash.provisions or 0.0,cell_format)
-                worksheet.write(row_num, 16, dash.depenses_reelles or 0.0, cell_format)
-                worksheet.write(row_num, 17, depenses,              cell_format)
-                worksheet.write(row_num, 18, dash.reste_a_depense or 0.0, cell_format)
-                worksheet.write(row_num, 19, result_chant,          cell_format)
+                # Ligne Excel
+                worksheet.write_row(row_num, 0, [
+                    dash.name.name or "",
+                    dash.libelle or "",
+                    dash.marche_initial,
+                    dash.ts,
+                    ca_fin,
+                    fact_cum,
+                    dash.od_facture or 0.0,
+                    dash.non_facture or 0.0,
+                    dash.trop_facture or 0.0,
+                    activite,
+                    avancement,
+                    deb_cum,
+                    dash.oda_d or 0.0,
+                    dash.ffnp or 0.0,
+                    dash.stocks or 0.0,
+                    dash.provisions or 0.0,
+                    depenses_reelles,
+                    depenses,
+                    dash.reste_a_depense or 0.0,
+                    result_chant
+                ], cell_format)
+                row_num += 1
 
-                # cumuls
+                # Cumul
                 total_marche_initial += dash.marche_initial
                 total_ts += dash.ts
                 total_ca_final += ca_fin
@@ -826,47 +860,33 @@ class AnalyticDashboard(models.Model):
                 total_activite += activite
                 total_debours_comptable += deb_cum
                 total_depenses += depenses
-                total_depenses_reelles += dash.depenses_reelles or 0.0
                 total_reste_a_depense += dash.reste_a_depense or 0.0
                 total_result_chant += result_chant
-                row_num += 1
 
-            if dashes:
-                avg_pourcentage = sum(
-                    (( ( (dash._compute_activite_chantier((dash.marche_initial or 0)+(dash.ts or 0),
-                                                        dash.depenses_reelles,
-                                                        dash.reste_a_depense)
-                            if dash.est_chantier else
-                            (dash.factures_cumulees + dash.od_facture + dash.non_facture + dash.trop_facture))
-                    ) / ((dash.marche_initial or 0)+(dash.ts or 0) or 1)) 
-                    * 100)
-                    for dash in dashes
-                ) / len(dashes)
-            else:
-                avg_pourcentage = 0
+            avg_pourcentage = round(sum(pourcentages) / len(pourcentages), 2) if pourcentages else 0
 
-            # Fin de plan : "ligne de totaux"
-            # (comme tu fais)
-            worksheet.merge_range(row_num, 0, row_num, 1, f"RESULTAT OGOOUE {plan.name}", total_format)
-            worksheet.write(row_num, 2, total_marche_initial, total_format)
-            worksheet.write(row_num, 3, total_ts, total_format)
-            worksheet.write(row_num, 4, total_ca_final, total_format)
-            worksheet.write(row_num, 5, total_fact_cumul, total_format)
-            worksheet.write(row_num, 6, total_od_facture, total_format)
-            worksheet.write(row_num, 7, total_non_facture, total_format)
-            worksheet.write(row_num, 8, total_trop_facture, total_format)
-            worksheet.write(row_num, 9, total_activite, total_format)
-            worksheet.write(row_num, 10, avg_pourcentage, total_format)
-            worksheet.write(row_num, 11, total_debours_comptable, total_format)
-            worksheet.write(row_num, 12, sum(d.oda_d for d in dashes), total_format)
-            worksheet.write(row_num, 13, sum(d.ffnp for d in dashes), total_format)
-            worksheet.write(row_num, 14, sum(d.stocks for d in dashes), total_format)
-            worksheet.write(row_num, 15, sum(d.provisions for d in dashes), total_format)
-            worksheet.write(row_num, 16, total_depenses_reelles, total_format)
-            worksheet.write(row_num, 17, total_depenses, total_format)
-            worksheet.write(row_num, 18, total_reste_a_depense, total_format)
-            worksheet.write(row_num, 19, total_result_chant, total_format)
-            
+            worksheet.merge_range(row_num, 0, row_num, 1, f"TOTAL {plan.name}", total_format)
+            worksheet.write_row(row_num, 2, [
+                total_marche_initial,
+                total_ts,
+                total_ca_final,
+                total_fact_cumul,
+                total_od_facture,
+                total_non_facture,
+                total_trop_facture,
+                total_activite,
+                avg_pourcentage,
+                total_debours_comptable,
+                sum(d.oda_d or 0.0 for d in dashes),
+                sum(d.ffnp or 0.0 for d in dashes),
+                sum(d.stocks or 0.0 for d in dashes),
+                sum(d.provisions or 0.0 for d in dashes),
+                sum((deb_cum + (d.oda_d or 0.0) + (d.ffnp or 0.0) - (d.stocks or 0.0) + (d.provisions or 0.0)) for d in dashes),
+                total_depenses,
+                total_reste_a_depense,
+                total_result_chant
+            ], total_format)
+
             row_num += 3
 
         workbook.close()
